@@ -241,11 +241,11 @@ reason2 = yield from wait(0.1) # retrieve overshoot
 ```
 
 The data is a 3-tuple. It contains information about why the thread was scheduled. Elements are:
-* 0 0 unless thread returned a Pinblock and one or more interrupts have occurred, when it holds
- a count of interrupts.
-* 1 0 unless thread returned a Poller and the latter has returned an integer, when it holds that
- value.
-* 2 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
+* elem[0] 0 unless thread returned a Pinblock and one or more interrupts have occurred, when it
+ holds a count of interrupts.
+* elem[1] 0 unless thread returned a Poller and the latter has returned an integer, when it holds
+ that  value.
+* elem[2] 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
 
 By implication if the thread yields a ``Roundrobin`` instance the return tuple will be (0, 0, 0).
 
