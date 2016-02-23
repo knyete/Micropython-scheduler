@@ -84,8 +84,8 @@ the code following the ``yield`` statement. An alternative way to yield control 
 at least ``time`` seconds have elapsed.
 
 Other ``Waitfor`` classes support round robin scheduling, waiting on a Pyboard pin state change,
-or waiting on an arbitrary user defined event. These support cases where a thread is blocked pending
-an event while letting other threads continue to run.
+or waiting on an arbitrary user defined event. The last two enable a thread to block pending
+an event while other threads continue to run.
 
 # The Scheduler
 
@@ -129,7 +129,7 @@ def mythread():
     while True:
         # do stuff
         yield Roundrobin()
-``
+```
 
 ### Time delay scheduling
 
