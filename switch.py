@@ -1,7 +1,6 @@
 # Switch class for Micropython and scheduler.
 # Author: Peter Hinch
-# V1.02 26th Aug 2014 switchcheck thread is now a method
-# 8th Aug: supports arguments for switch callbacks
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
 from usched import Timeout
@@ -17,14 +16,14 @@ from usched import Timeout
 
 class Switch(object):
     DEBOUNCETIME = 0.02
-    def __init__(self, objSched, pinName, close_func = None, close_func_args = (), open_func = None, open_func_args = ()):
+    def __init__(self, objSched, pinName, close_func=None, close_func_args=(), open_func=None, open_func_args=()):
         self.pin = pyb.Pin(pinName, pyb.Pin.IN, pyb.Pin.PULL_UP) # Initialise for input, switch to ground
         self.close_func = close_func
         self.close_func_args = close_func_args
         self.open_func = open_func
         self.open_func_args = open_func_args
         self.switchstate = self.pin.value()                 # Get initial state
-        objSched.add_thread(self.switchcheck())              # Thread runs forever
+        objSched.add_thread(self.switchcheck())             # Thread runs forever
 
     def __call__(self):
         return self.switchstate                             # Return current state of switch (0 = pressed)

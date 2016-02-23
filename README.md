@@ -1,12 +1,10 @@
-TODO get rid of minified, trim code comments
-
 # Micropython-scheduler
 
 Author: Peter Hinch
 V1.03 28th Feb 2016. Now performs garbage collection to reduce heap fragmentation.
 
 A set of libraries for writing threaded code on the MicroPython board. It has been tested on Pyboards
-V1.0 and 1.1 but should run on Pyboard Lites. Drivers are included for switches, pushbuttons
+V1.0 and 1.1 but should run on Pyboard Lites. Drivers are included for switches, push-buttons
 and alphanumeric LCD displays.
 
 # Introduction
@@ -56,7 +54,7 @@ There are five libraries
 
 Test/demonstration programs
  1. ledflash.py Flashes the onboard LED's asynchronously
- 2. roundrobin.py Demonstrates round-robin schedulting.
+ 2. roundrobin.py Demonstrates round-robin scheduling.
  3. irqtest.py Demonstrates a thread which blocks on an interrupt.
  4. subthread.py Illustrates dynamic creation and deletion of threads.
  5. lcdtest.py Demonstrates output to an attached LCD display.
@@ -69,12 +67,12 @@ Test/demonstration programs
 A typical program performs the following operations.
  1. Define the threads.
  2. Instantiate the scheduler.
- 3. Assign to the scheduler threads which will run at startup.
+ 3. Assign to the scheduler threads which will run at start-up.
  4. Start the scheduler.
 
 # Threads
 
-A thread is writen like a Python function except that it periodically yields to the scheduler (it
+A thread is written like a Python function except that it periodically yields to the scheduler (it
 is a generator function). When it executes ``yield`` the scheduler may allocate time to another thread before
 control returns to the statement following ``yield``. The thread ends when a ``return`` instruction is
 issued, or when the code runs out.
@@ -107,7 +105,7 @@ objSched.add_thread(toggle(leds[x], 0.75))
 The ``add_thread`` method may be issued from another thread, enabling threads to be dynamically
 created. The ``Sched`` class  is started by calling its ``run()`` method: execution transfers to
 the first thread to be scheduled. Any code following the call to ``run()`` will not be executed
-until the scheduler terminates; up to that point exceution is shared between the threads. The
+until the scheduler terminates; up to that point execution is shared between the threads. The
 scheduler will terminate either when all threads have terminated or when its ``stop()`` method
 is called. Execution then continues with the line following the call to ``run()``.
 
@@ -136,7 +134,7 @@ def mythread():
 ### Time delay scheduling
 
 If a thread needs to wait, ideally it should do so by allowing other threads to run for the
-duration of the delay. This is accomplshed as follows:
+duration of the delay. This is accomplished as follows:
 
 ```python
 def mythread():
@@ -159,12 +157,12 @@ def mythread():
     while True:
         # do stuff
         result = yield from wait(0.4) # 400ms delay
-        overrun = result[2]  # in uS
+        overrun = result[2]  # in us
 ```
 
 There is no upper bound on the delay. There lower bound is zero but in practice periods
 below a few milliseconds result in imprecise delays for the reason described. Further, repeatedly
-issuing short delays may casue the thread to hog execution because timed-out threads
+issuing short delays may cause the thread to hog execution because timed-out threads
 have priority over round robin ones.
 
 ### Wait on an Arbitrary Event
@@ -195,13 +193,13 @@ Yielding a ``Poller`` with function call syntax (as above) will reset the timeou
 specified in the constructor.
 
 For performance reasons callback functions should be designed to execute quickly: the scheduler
-must run this every time it allocates exceution.
+must run this every time it allocates execution.
 
 ### Blocking on a Pin interrupt
 
 The ``Pinblock`` class is for the somewhat specialist case where a pin is required to execute
 an interrupt callback and subsequently schedule a thread. A typical use case is handling
-a bit-banging communications protocol where the interrupt sevice routine (ISR) - which is called
+a bit-banging communications protocol where the interrupt service routine (ISR) - which is called
 very soon after the pin state change - puts data in a buffer which is then handled in
 slow time by a thread. The thread will be scheduled as soon as possible after the ISR,
 but it's possible that multiple ISR calls might occur before the thread is scheduled. It
@@ -238,11 +236,11 @@ reason2 = yield from wait(0.1) # retrieve overshoot
 ```
 
 The data is a 3-tuple. It contains information about why the thread was scheduled. Elements are:
- 0. 0 unless thread returned a Pinblock and one or more interrupts have occured, when it holds
+ 0. 0 unless thread returned a Pinblock and one or more interrupts have occurred, when it holds
  a count of interrupts.
  1. 0 unless thread returned a Poller and the latter has returned an integer, when it holds that
  value.
- 2. 0 unless thread was waiting on a timer or timeout when it holds no. of uS it is late.
+ 2. 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
 
 By implication if the thread yields a ``Roundrobin`` instance the return tuple will be (0, 0, 0).
 
@@ -255,7 +253,7 @@ returned from that call to ``yield`` will be ``None``.
 
 ### Timeout class
 
-If a thread yileds a ``Timeout`` instance it will block for the duration of its time. In this
+If a thread yields a ``Timeout`` instance it will block for the duration of its time. In this
 respect its behaviour is identical to ``yield from wait(time)`` and the latter should normally
 be used. This is because it can handle arbitrarily long periods. The ``Timeout`` class is used
 internally and documented as it may be of use in writing device drivers: instantiating a timeout
@@ -272,7 +270,7 @@ Example code in irqtest.py and pushbutton.py.
 
 # Threaded device drivers
 
-These are povided for use in their own right and as examples of practical threaded code.
+These are provided for use in their own right and as examples of practical threaded code.
 
 ## Switch class
 
@@ -298,8 +296,8 @@ Constructor arguments:
 
 Provided by pushbutton.py, sample code in pushbuttontest.py.
 
-This supports callbacks executed on putton press, button release, double click, and long press. Pushbuttons
-may be linked to ground or Vdd. The simplest introduction to the class is to view the example code in
+This supports callbacks executed on button press, button release, double click, and long press. Push-buttons
+may be linked to ground or vdd. The simplest introduction to the class is to view the example code in
 pushbuttontest.py - note that the concepts of pressed or released are independent of whether the
 button is wired to ground or vdd, and whether the contacts are normally open or normally closed. A
 pushbutton object has a logical state ``True`` when pressed abstracted from its physical state.
@@ -316,7 +314,7 @@ Pushbutton(objSched, 'X5', descriptor, false_func = x5print, false_func_args = (
 In this instance a function ``x5print`` is called with a single string argument 'Red' when the button
 is released.
 
-The characteristics of a pushbutton are defined by a dictionary, and the driver provides a typical instance
+The characteristics of a ``Pushbutton`` are defined by a dictionary, and the driver provides a typical instance
 ``descriptor``. The following keys must be present. Values in the ``descriptor`` object in brackets.
 
  1. ``no`` True if pushbutton contacts are normally open. (``True``).
@@ -340,8 +338,8 @@ The pushbutton constructor takes the following arguments (defaults in brackets):
  10. ``double_func`` Callback on double click (``None``).
  11. ``double_func_args`` Tuple of arguments for above (``()``).
 
-A pusbutton object supports two methods.
- 1. ``__call__`` ``mybutton()`` returns the logical debounced state of the button.
+A ``Pushbutton`` object supports two methods.
+ 1. ``__call__`` Call syntax e.g. ``mybutton()`` returns the logical debounced state of the button.
  2. ``rawstate()`` Returns the logical instantaneous state of the button.
 
 ## LCD Class
@@ -362,21 +360,23 @@ The LCD constructor takes the following arguments (defaults in brackets):
  3. ``cols`` Number of display columns.
  4. ``rows`` Number of rows (2).
 
-The LCD is addressed using array subscript notation, with the subscript denoting the row:
+The LCD is addressed using array subscript notation, with the subscript denoting the row. You
+should issue ``yield`` immediately after updating one or more rows.
 
 ```python
 import pyb
 from usched import Sched, wait
-from lcdthread import LCD, PINLIST                          # Library supporting Hitachi LCD module
+from lcdthread import LCD, PINLIST
 def lcd_thread(mylcd):
     mylcd[0] = "MicroPython"
+    yield Roundrobin()
     while True:
-        mylcd[1] = "{:11d}uS".format(pyb.micros())
+        mylcd[1] = "{:11d}us".format(pyb.micros())
         yield from wait(1)
 
 objSched = Sched()
 lcd0 = LCD(PINLIST, objSched, cols = 16)
-objSched.add_thread(lcd_thread(lcd0))
+objSched.add_thread(lcd_thread(lcd0)) # Add any other threads and start the scheduler
 ```
 
 ## Delay Class
@@ -442,7 +442,7 @@ reduces heap fragmentation which improves program performance. It can also impro
 badly fragmented heap can cause irretrievable allocation failures.
 
 The scheduler has a built-in thread ``_idle_thread`` which is scheduled on a round robin basis. This
-performs a GC if it hasn't been done for an interval defined by ``Sched.GCTIME`` (curentl 50ms).
+performs a GC if it hasn't been done for an interval defined by ``Sched.GCTIME`` (current 50ms).
 
 ### Pinblock objects and interrupts
 
@@ -455,13 +455,46 @@ priority.
 ### Priorities
 
 The paragraph "Return from yield" above describes the 3-tuple returned by the scheduler when a thread
-is shceduled. The natural sort order of such tuples defines the priorities used to determine the order
+is scheduled. The natural sort order of such tuples defines the priorities used to determine the order
 in which pending threads are run, vis:
 
  1. ``Pinblock`` threads in order of decreasing interrupts missed.
  2. ``Poller`` threads where the event has occurred in decreasing order of integer returned.
  3. Time delays: most overdue first.
  4. Round robin threads in arbitrary order.
+
+# Hints and tips
+
+### Program hangs and errors
+
+Hanging almost always happens because a thread has blocked without yielding: this will hang the
+entire system. A common cause of exceptions is to ``yield`` something other than an object derived
+from the ``Waitfor`` class.
+
+### Instrumenting your code
+
+The following thread is useful in testing programs. It terminates the test (and optionally
+terminates the scheduler) after a given number of seconds and prints the maximum overrun on a
+timed thread which occurred in that period. This gives an indication of how long your other
+threads are blocking.
+
+```python
+def instrument(objSched=None, interval=0.1, duration=10):
+    if interval == 0 or interval > duration:
+        raise ValueError('Arguments are invalid')
+    count = duration // interval
+    max_overrun = 0
+    while count:
+        count -= 1
+        result = yield from wait(interval)
+        max_overrun = max(max_overrun, result[2])
+    print('Maximum overrun = {}us'.format(max_overrun))
+    if objSched is not None:
+        objSched.stop()
+```
+
+As a general guide, in trivial programs such as ledflash.py a ``yield from wait()`` can be
+expected to overrun by just over 2ms maximum.
 
 # Notes for beginners
 
@@ -472,9 +505,9 @@ make the solution of certain types of problem simpler to code and easier to read
 
 It facilitates a style of programming based on the concept of routines offering the illusion of
 running concurrently. This can simplify the process of interacting with physical devices.
-Consider the task of reading 12 pushbuttons. Mechanical switches such as buttons suffer from
+Consider the task of reading 12 push-buttons. Mechanical switches such as buttons suffer from
 contact bounce. This means that several rapidly repeating transitions can occur when the button
-is pushed or realeased. The simplest way to eliminate this is, on receipt of the first transition,
+is pushed or released. The simplest way to eliminate this is, on receipt of the first transition,
 to wait (typically 20ms) and check the state of the button. By then the bouncing will be over
 and its state can be read. Doing this in linear code for 12 buttons can get messy. So we write
 
@@ -528,7 +561,7 @@ simple context switching; the scheduler employs conventional Python code.
 
 ### Communication
 
-In nontrivial applications threads need to communicate. Conventional Python techniques can be emplyed.
+In non-trivial applications threads need to communicate. Conventional Python techniques can be employed.
 These include the use of global variables or declaring threads as object methods which can then share
 instance variables. Or a mutable object may be passed as a thread argument. Unlike in pre-emptive systems
 there is no magic to it.
@@ -537,7 +570,7 @@ there is no magic to it.
 
 Some hardware such as the accelerometer doesn't support interrupts, and therefore must be polled. One
 option suitable for slow devices is to write a thread which polls the device periodically. A faster and
-more elegant way is to delegate this activity to the scheduler. The thread then suspends excution pending
+more elegant way is to delegate this activity to the scheduler. The thread then suspends execution pending
 the result of a user supplied callback function, which is run by the scheduler. From the thread's point
 of view it blocks pending an event - with an optional timeout available. See "Wait on an Arbitrary Event"
 above.

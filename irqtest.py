@@ -1,6 +1,6 @@
 # irqtest.py Demonstrates, with minimal hardware, the use of the scheduler in responding to pin interrupts
 # Author: Peter Hinch
-# V1.02 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 # Also demonstrates the debounced switch library (which is threaded)
 
@@ -21,8 +21,8 @@ from switch import Switch                                   # Library supporting
 # HARDWARE 
 # MicroPython board with pin X7 linked to pin X8
 # Optionally provide two pushbuttons wired to be capable of grounding X5 and X6 respectively
-# The interrupt handler pulses pin Y10 to enable timings to be measured, notably minimum pulse duration
-# and latency
+# The interrupt handler pulses pin Y10 to enable timings to be measured with an osclloscope, notably minimum
+# pulse duration and latency
 
 # THREADS:
 

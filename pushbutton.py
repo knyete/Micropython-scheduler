@@ -1,6 +1,6 @@
 # pushbutton.py pushbutton library. Class offers press, release, long and double click callbacks
 # Author: Peter Hinch
-# V1.0 21st Aug 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
 from usched import Sched, Timeout

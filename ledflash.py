@@ -1,6 +1,6 @@
 # ledflash.py Demo/test program for MicroPython scheduler
 # Author: Peter Hinch
-# V1.1 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 # Flashes the onboard LED's each at a different rate. Stops after ten seconds.
 
 import pyb

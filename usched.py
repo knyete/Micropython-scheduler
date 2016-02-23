@@ -1,6 +1,7 @@
-# Microthreads for the micropython board. 22nd Feb 2016
+# Lightweight threading library for the micropython board.
 # Author: Peter Hinch
 # V1.03 Implements gc
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb, micropython, gc
 micropython.alloc_emergency_exception_buf(100)

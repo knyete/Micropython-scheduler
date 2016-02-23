@@ -1,6 +1,6 @@
 # lcdtest.py Demo/test program for MicroPython scheduler with attached LCD display
 # Author: Peter Hinch
-# V1.02 6th Sep 2014 now uses pyb.micros() and yield from wait(fTim)
+# Copyright Peter Hinch 2016 Released under the MIT license
 # Display must use the Hitachi HD44780 controller. This demo assumes a 16*2 character unit.
 
 import pyb

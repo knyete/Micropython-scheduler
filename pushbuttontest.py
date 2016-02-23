@@ -1,6 +1,6 @@
 # pushbuttontest.py Demonstrates the pushbutton library
 # Author: Peter Hinch
-# V1.02 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 from usched import Sched, wait
 from pushbutton import Pushbutton, descriptor

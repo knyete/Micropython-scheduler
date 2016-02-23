@@ -1,6 +1,6 @@
 # roundrobin.py Runs three threads in round robin fashion. Stops after a duration via a timeout thread.
 # Author: Peter Hinch
-# V1.02 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
 from usched import Sched, Roundrobin, wait

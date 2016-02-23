@@ -1,7 +1,7 @@
 # polltest.py Demonstrates the use of poll functions where a thread blocks pending the result of a callback function
 # polled by the scheduler
 # Author: Peter Hinch
-# V1.02 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
 from usched import Sched, Poller, wait

@@ -1,6 +1,7 @@
 # subthread.py Demo/test  of one thread starting another and receiving a result from it
 # Author: Peter Hinch
 # V1.02 6th Sep 2014
+# Copyright Peter Hinch 2016 Released under the MIT license
 
 from usched import Sched, Roundrobin, wait
 
