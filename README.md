@@ -122,7 +122,9 @@ below.
 ### Round Robin scheduling
 
 This causes the scheduler to reschedule the thread as soon as possible. If other threads are
-pending roundrobin scheduling they will be scheduled in turn before execution resumes.
+pending round-robin scheduling they will be scheduled in turn before execution resumes. Higher
+priority threads will be scheduled ahead of them. After running, a round-robin thread won't
+run again until all other pending round-robin threads have run.
 
 ```python
 def mythread():
@@ -150,7 +152,7 @@ actual time of resumption may overrun, typically by a few milliseconds. Where de
 microsecond region are required, there is no alternative than to use the ``pyb.udelay()``
 function.
 
-The amount of overrun may be retrieved as follows (see Return from Yield for explanation).
+The amount of overrun may be retrieved as follows (see paragraph "Return from Yield" for explanation).
 
 ```python
 def mythread():
@@ -168,9 +170,9 @@ have priority over round robin ones.
 ### Wait on an Arbitrary Event
 
 The ``Poller`` class allows a thread to wait on an arbitrary event, such as a character arriving on a UART.
-The user provides a callback function which returns None if the event has not occurred. If
-it has occurred it should return an integer. This may optionally be retrieved by the thread:
-see "Return from yield" below.
+The user provides a callback function which must return ``None`` unless the event has occurred; in
+that case it should return an integer. This may optionally be retrieved by the thread:
+see paragraph "Return from yield" below.
 
 Typical code is as follows:
 
@@ -193,7 +195,7 @@ Yielding a ``Poller`` with function call syntax (as above) will reset the timeou
 specified in the constructor.
 
 For performance reasons callback functions should be designed to execute quickly: the scheduler
-must run this every time it allocates execution.
+runs the callback every time it allocates execution.
 
 ### Blocking on a Pin interrupt
 
@@ -214,9 +216,9 @@ arguments:
  5. An optional timeout in seconds (default None: wait forever).
 
 The return value enables the thread to determine whether the ``Pinblock`` timed out, and if
-it did not, the number of interrupts which have occurred. Note that this count may be low if
-an interrupt occurred after the scheduler prioritised the thread but before it was actually
-executed. In this instance the thread will be scheduled to run again.
+it did not, the number of interrupts which have occurred. Note that this count may be inaccurate
+(low) if an interrupt occurred after the scheduler prioritised the thread but before it was
+actually executed. In this instance the thread will be scheduled to run again.
 
 Yielding a ``Pinblock`` with function call syntax will reset the timeout to the value
 specified in the constructor.
@@ -236,11 +238,11 @@ reason2 = yield from wait(0.1) # retrieve overshoot
 ```
 
 The data is a 3-tuple. It contains information about why the thread was scheduled. Elements are:
- 0. 0 unless thread returned a Pinblock and one or more interrupts have occurred, when it holds
+* 0 0 unless thread returned a Pinblock and one or more interrupts have occurred, when it holds
  a count of interrupts.
- 1. 0 unless thread returned a Poller and the latter has returned an integer, when it holds that
+* 1 0 unless thread returned a Poller and the latter has returned an integer, when it holds that
  value.
- 2. 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
+* 2 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
 
 By implication if the thread yields a ``Roundrobin`` instance the return tuple will be (0, 0, 0).
 
