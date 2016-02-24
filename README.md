@@ -589,3 +589,13 @@ periodically. A faster and more elegant way is to delegate this activity to the 
 thread then suspends execution of that thread pending the result of a user supplied callback
 function, which is run by the scheduler. From the thread's point of view it blocks pending an
 event - with an optional timeout available. See paragraph "Wait on an Arbitrary Event" above.
+
+# Appendix: for scheduler purists
+
+Why do I sort a list rather than use a heapq? Firstly the heapq implementation isn't very micro.
+Secondly, the only list that gets sorted is a list of threads which were waiting on a time or an
+event: this has now occurred and they are ready to run. Such a list would typically comprise zero
+or one element. If there were five on the list I'd start to worry about the application design.
+Sorting a five element list of random elements of the type in use takes 36us on the Pyboard.
+Zero or one element takes 13us. These times are minor by comparison with the latency implied by a
+single higher priority task on the list.
