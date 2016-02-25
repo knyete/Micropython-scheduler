@@ -145,6 +145,9 @@ class Poller(Waitfor):
             self.setdelay(timeout)
 
 # SCHEDULER CLASS
+# PID's
+# Default yield None for roundrobin
+# stop and pause threads
 
 class Sched(object):
     GCTIME = 50000
