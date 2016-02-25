@@ -3,13 +3,13 @@
 # V1.02 6th Sep 2014
 # Copyright Peter Hinch 2016 Released under the MIT license
 
-from usched import Sched, Roundrobin, wait
+from usched import Sched,  wait
 
 # Run on MicroPython board bare hardware
 # THREADS:
 
 def subthread(lstResult):                                   # Gets a list for returning result(s) to caller
-    yield Roundrobin()
+    yield
     print("Subthread started")                              # In this test list simply contains a boolean
     yield from wait(1)
     print("Subthread end")
@@ -20,7 +20,7 @@ def waitforit(objSched):                                    # Waits forever on s
     print("Waiting on thread")
     objSched.add_thread(subthread(result))
     while not result[0]:                                    # Subthread will set element 0 True on completion
-        yield Roundrobin()                                  # In a useful application would return other results too
+        yield                                               # In a useful application would return other results too
     print("Thread returned")
 
 # USER TEST PROGRAM

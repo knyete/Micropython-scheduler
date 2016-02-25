@@ -97,8 +97,8 @@ class Waitfor(object):
             self.customcallback(irqno)
         self.interruptcount += 1                # Increments count to enable trigger to operate
 
-class Roundrobin(Waitfor):
-    def __init__(self):
+class Roundrobin(Waitfor):                      # Compatibility only. A thread yielding a Roundrobin
+    def __init__(self):                         # will be rescheduled as soon as priority threads have been serviced
         super().__init__()
         self.roundrobin = True
 
@@ -145,46 +145,74 @@ class Poller(Waitfor):
             self.setdelay(timeout)
 
 # SCHEDULER CLASS
-# PID's
-# Default yield None for roundrobin
-# stop and pause threads
 
 class Sched(object):
-    GCTIME = 50000
+    GCTIME = const(50000)
+    DEAD = const(0)
+    RUNNING = const(1)
+    PAUSED = const(2)
+    WAITFOR = const(0)
+    FUNC = const(1)
+    PID = const(2)
+    STATE = const(3)
     def __init__(self):
-        self.lstThread = []                                 # Entries contain [Waitfor object, function]
+        self.lstThread = []                     # Entries contain [Waitfor object, function, pid, state]
         self.bStop = False
         self.last_gc = 0
+        self.pid = 0
 
-    def stop(self):                                         # Kill _runthreads method
-        self.bStop = True
+    def __getitem__(self, pid):                 # Index by pid
+        threads = [thread for thread in self.lstThread if thread[PID] == pid]
+        if len(threads) == 1:
+            return threads[0]
+        elif len(threads) == 0:
+            raise ValueError('Unknown thread ID {}'.format(pid))
+        else:
+            raise OSError('Scheduler fault: duplicate thread {}'.format(pid))
 
-    def add_thread(self, func):                             # Thread list contains [Waitfor object, generator]
-        try:                                                # Run thread to first yield to acquire a Waitfor instance
-            self.lstThread.append([func.send(None), func])  # and put the resultant thread onto the threadlist
-        except StopIteration:                               # Onn 1st call implies thread lacks a yield statement
-            print("Stop iteration error")
+    def stop(self, pid=0):
+        if pid == 0:
+            self.bStop = True                   # Kill _runthreads method
+            return
+        self[pid][STATE] = DEAD
 
-    def run(self):                                          # Run scheduler but trap ^C for testing
-        try:
-            self._runthreads()
-        except OSError as v:                                # Doesn't recognise EnvironmentError or VCPInterrupt!
-            print(v)
-            print("Interrupted")
+    def pause(self, pid):
+        print('pause pid', pid)
+        self[pid][STATE] = PAUSED
 
-    def _idle_thread(self):                                  # Runs once then in roundrobin or when there's nothing else to do
-        if self.last_gc == 0 or microsSince(self.last_gc) > self.GCTIME:
+    def resume(self, pid):
+        print('resume pid', pid)
+        self[pid][STATE] = RUNNING
+
+    def add_thread(self, func):                 # Thread list contains [Waitfor object, generator, pid, state]
+        self.pid += 1                           # Run thread to first yield to acquire a Waitfor instance
+        self.lstThread.append([func.send(None), func, self.pid, RUNNING]) # and put the resultant thread onto the threadlist
+        return self.pid
+
+    def run(self):                              # Run scheduler
+        self._runthreads()
+
+    def _idle_thread(self):                     # Runs once then in roundrobin or when there's nothing else to do
+        if self.last_gc == 0 or microsSince(self.last_gc) > GCTIME:
             gc.collect()
             self.last_gc = pyb.micros()
+
+    def triggered(self, thread):
+        wf = thread[WAITFOR]
+        if wf is None:
+            return (0, 0, 0)                    # Roundrobin
+        if isinstance(wf, Waitfor):
+            return wf.triggered()
+        raise ValueError('Thread yielded an invalid object')
 
     def _runthreads(self):                                  # Only returns if the stop method is used or all threads terminate
         self._idle_thread()
         while len(self.lstThread) and not self.bStop:       # Run until last thread terminates or the scheduler is stopped
-            self.lstThread = [thread for thread in self.lstThread if thread[1] is not None] # Remove threads flagged for deletion
+            self.lstThread = [thread for thread in self.lstThread if thread[STATE] != DEAD] # Remove dead threads
             lstPriority = []                                # List threads which are ready to run
             lstRoundRobin = []                              # Low priority round robin threads
             for idx, thread in enumerate(self.lstThread):   # Put each pending thread on priority or round robin list
-                priority = thread[0].triggered()            # (interrupt count, poll func value, uS overdue) or None
+                priority = self.triggered(thread)           # (interrupt count, poll func value, uS overdue) or None
                 if priority is not None:                    # Ignore threads waiting on events or time
                     if priority == (0,0,0) :                # (0,0,0) indicates round robin
                         lstRoundRobin.append(idx)
@@ -192,28 +220,47 @@ class Sched(object):
                         lstPriority.append((priority, idx)) # List threads ready to run
             lstPriority.sort()                              # Lowest priority will be first in list
 
-            while True:                                     # Until there are no round robin threads left
-                while len(lstPriority):                     # Execute high priority threads first
-                    priority, idx = lstPriority.pop(-1)     # Get highest priority thread. Thread:
+            done = False
+            while not done:                                 # Until there are no round robin threads left
+                while True:
+                    lstrun = []
+                    for ptuple in lstPriority:
+                        idx = ptuple[1]
+                        thread = self.lstThread[idx]
+                        if thread[STATE] == RUNNING:
+                            lstrun.append(lstPriority.index(ptuple))
+#                    lstrun = [lstPriority.index(t) for t in lstPriority if self.lstThread[t[1]][STATE] == RUNNING]:  # Execute high priority threads first
+                    if len(lstrun) == 0:
+                        break
+                    pidx = lstrun.pop(-1)
+                    priority, idx = lstPriority.pop(pidx)     # Get highest priority thread. Thread:
                     thread = self.lstThread[idx]            # thread[0] is the current waitfor instance, thread[1] is the code
                     try:                                    # Run thread, send (interrupt count, poll func value, uS overdue)
-                        thread[0] = thread[1].send(priority)  # Thread yields a Waitfor object: store it for subsequent testing
+                        thread[WAITFOR] = thread[FUNC].send(priority)  # Thread yields a Waitfor object or None store for subsequent testing
                     except StopIteration:                   # The thread has terminated:
-                        self.lstThread[idx][1] = None       # Flag thread for removal
-
-                if len(lstRoundRobin) == 0:                 # There are no round robins pending. Quit the loop to rebuild new
-                    self._idle_thread()
-                    break                                   # lists of threads
-                idx = lstRoundRobin.pop()                   # Run an arbitrary round robin thread and remove from pending list
-                thread = self.lstThread[idx]
-                try:                                        # Run thread, send (0,0,0) because it's a round robin
-                    thread[0] = thread[1].send((0,0,0))     # Thread yields a Waitfor object: store it
-                except StopIteration:                       # The thread has terminated:
-                    self.lstThread[idx][1] = None           # Flag thread for removal
-                                                            # Rebuild priority list: time has elapsed and events may have occurred!
-                for idx, thread in enumerate(self.lstThread): # check and handle priority threads
-                    priority = thread[0].triggered()        # (interrupt count, poll func value, uS overdue) or None
-                                                            # Ignore pending threads, those scheduled for deletion and round robins
-                    if priority is not None and priority != (0,0,0) and thread[1] is not None:
-                         lstPriority.append((priority, idx)) # Just list threads wanting to run
-                lstPriority.sort()
+                        self.lstThread[idx][STATE] = DEAD   # Flag thread for removal
+                while not done:
+                    setrun = set()
+                    for idx in lstRoundRobin:
+                        thread = self.lstThread[idx]
+                        if thread[STATE] == RUNNING:
+                            setrun.add(lstRoundRobin.index(idx))
+#                    lstrun = [lstRoundRobin.index(t) for t in lstRoundRobin if self.lstThread[t][STATE] == RUNNING]:
+                    if len(setrun) == 0:                 # There are no round robins pending. Quit the loop to rebuild new
+                        self._idle_thread()
+                        done = True
+                        break                                   # lists of threads
+                    idxrr = setrun.pop()
+                    idx = lstRoundRobin.pop(idxrr)                   # Run an arbitrary round robin thread and remove from pending list
+                    thread = self.lstThread[idx]
+                    try:                                        # Run thread, send (0,0,0) because it's a round robin
+                        thread[WAITFOR] = thread[FUNC].send((0,0,0))  # Thread yields a Waitfor object or None: store it
+                    except StopIteration:                       # The thread has terminated:
+                        self.lstThread[idx][STATE] = DEAD       # Flag thread for removal
+                                                                # Rebuild priority list: time has elapsed and events may have occurred!
+                    for idx, thread in enumerate(self.lstThread): # check and handle priority threads
+                        priority = self.triggered(thread)       # (interrupt count, poll func value, uS overdue) or None
+                                                                # Ignore pending threads, paused, scheduled for deletion and round robins
+                        if priority is not None and priority != (0,0,0):
+                            lstPriority.append((priority, idx)) # Just list threads wanting to run
+                    lstPriority.sort()

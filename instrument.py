@@ -3,7 +3,7 @@
 # Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
-from usched import Sched, Roundrobin, wait, microsSince
+from usched import Sched, wait, microsSince
 
 # Run on MicroPython board bare hardware
 # THREADS:
@@ -22,18 +22,17 @@ def instrument(objSched=None, interval=0.1, duration=10):
         objSched.stop()
 
 def thr_instrument(objSch, lstResult):
-    yield Roundrobin()                          # Don't measure initialisation phase (README.md)
+    yield                          # Don't measure initialisation phase (README.md)
     while True:
-        start = pyb.micros()                    # More typically we'd measure our own code
-        yield Roundrobin()                      # but here we're measuring yield delays
+        start = pyb.micros()       # More typically we'd measure our own code
+        yield                      # but here we're measuring yield delays
         lstResult[0] = max(lstResult[0], microsSince(start))
         lstResult[1] += 1
 
 def robin(text):
-    wf = Roundrobin()
     while True:
         print(text)
-        yield wf()
+        yield
 
 # USER TEST PROGRAM
 

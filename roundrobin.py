@@ -3,7 +3,7 @@
 # Copyright Peter Hinch 2016 Released under the MIT license
 
 import pyb
-from usched import Sched, Roundrobin, wait
+from usched import Sched, wait
 
 # Run on MicroPython board bare hardware
 # THREADS:
@@ -13,10 +13,9 @@ def stop(fTim, objSch):                                     # Stop the scheduler
     objSch.stop()
 
 def robin(text):
-    wf = Roundrobin()
     while True:
         print(text)
-        yield wf()
+        yield
 
 # USER TEST PROGRAM
 

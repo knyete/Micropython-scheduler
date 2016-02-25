@@ -115,6 +115,12 @@ When ``add_thread`` is issued the thread will run until the first yield statemen
 suspend execution until the scheduler starts. This enables initialisation code to be run in a well
 defined order: the order in which threads are added.
 
+If ``add_thread`` raises a ``StopIteration`` exception it is probably because your thread runs
+to completion without executing ``yield``.
+
+``add_thread`` returns an integer representing a unique ID for the thread. This may be used to
+stop or pause the thread.
+
 # Ways of Scheduling
 
 When a thread yields, the scheduler returns information about the reason it was rescheduled.
@@ -132,7 +138,7 @@ run again until all other pending round-robin threads have run.
 def mythread():
     while True:
         # do stuff
-        yield Roundrobin()
+        yield # round-robin is the default
 ```
 
 ### Time delay scheduling
