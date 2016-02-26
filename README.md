@@ -1,11 +1,12 @@
 # Micropython-scheduler
 
-Author: Peter Hinch
-V1.03 23rd Feb 2016. Now performs garbage collection to reduce heap fragmentation.
-
 A set of libraries for writing threaded code on the MicroPython board. It has been tested on
 Pyboards V1.0 and 1.1 but should run on Pyboard Lites. Drivers are included for switches, 
 push-buttons and alphanumeric LCD displays.
+
+Author: Peter Hinch
+V1.04 27th Feb 2016. Now performs garbage collection to reduce heap fragmentation. Improved
+scheduling algorithm. Threads can now pause, resume and kill other threads. Simplified usage.
 
 # Introduction
 
@@ -15,21 +16,21 @@ The official way to achieve this is the ``uasyncio`` library.
 
 This scheduler uses a well established Python technique known as microthreading or lightweight
 threads. See [this paper from IBM](http://www.ibm.com/developerworks/library/l-pythrd/) for an old
-introduction to the principle. The driver was written before ``uasyncio`` existed and I believe it
-still has relevance to those familiar with the thread paradigm. The following is a simple example
-of its use, which flashes the four Pyboard LEDs in an asynchronous manner.
+introduction to the principle. This library was written before ``uasyncio`` existed and I believe
+it still has relevance to those familiar with the thread paradigm. The following is a simple
+example of its use, which flashes the four Pyboard LEDs in an asynchronous manner.
 
 ```python 
 import pyb
-from usched import Sched, wait
+from usched import Sched
 
-def stop(fTim, objSch):                 # Stop the scheduler after fTim seconds
-    yield from wait(fTim)
+def stop(ftim, objSch):                 # Stop the scheduler after ftim seconds
+    yield ftim
     objSch.stop()
 
-def toggle(objLED, period):
+def toggle(objLED, period):             # Flash an LED periodically
     while True:
-        yield from wait(period)
+        yield period
         objLED.toggle()
 
 leds = [pyb.LED(x) for x in range(1,5)] # Initialise all four on board LED's
@@ -48,20 +49,21 @@ document.
 There are five driver libraries. Items 2-5 inclusive use usched.
  1. usched.py The scheduler
  2. switch.py Support for debounced switches.
- 3. pushbutton.py Pushbutton supports logical value, press, release, long and double click
- callbacks.
- 4. lcdthread.py Support for LCD displays using the Hitachi HD44780 controller chip.
+ 3. pushbutton.py Supports callbacks on press, release, long click and double click.
+ 4. lcdthread.py Supports LCD displays using the Hitachi HD44780 controller chip.
  5. delay.py A simple retriggerable time delay class.
 
-Test/demonstration programs
+Test/demonstration programs. The first two produce the most interesting demos :)
  1. ledflash.py Flashes the onboard LED's asynchronously.
- 2. roundrobin.py Demonstrates round-robin scheduling.
- 3. irqtest.py Demonstrates a thread which blocks on an interrupt.
- 4. subthread.py Illustrates dynamic creation and deletion of threads.
- 5. lcdtest.py Demonstrates output to an attached LCD display.
- 6. polltest.py A thread which blocks on a user defined polling function.
+ 2. polltest.py A thread which blocks on a user defined polling function. Needs a board with an
+ accelerometer.
+ 3. roundrobin.py Demonstrates round-robin scheduling.
+ 4. irqtest.py Demonstrates a thread which blocks on an interrupt.
+ 5. subthread.py Illustrates dynamic creation and deletion of threads.
+ 6. lcdtest.py Demonstrates output to an attached LCD display.
  7. instrument.py The scheduler's timing functions employed to instrument code.
  8. pushbuttontest.py Demo of pushbutton class.
+ 9. pause.py Demo of threads controlling each other.
 
 # Usage
 
@@ -78,15 +80,16 @@ is a generator function). When it executes ``yield`` the scheduler may allocate 
 thread before control returns to the statement following ``yield``. The thread ends when a
 ``return`` instruction is issued, or when the code runs out.
 
-Threads must ``yield`` a specific type of object derived from the ``Waitfor`` class. These are
-described in more detail below, but the object type determines when the scheduler re-schedules
-the code following the ``yield`` statement. An alternative way to yield control is to issue
-``yield from wait(time)``. In this instance the scheduler won't reschedule the thread until
-at least ``time`` seconds have elapsed.
+Threads can ``yield`` in the following ways which determine when the instruction after the
+``yield`` statement is next run:
+ 1. ``yield`` (no argument). Thread runs in round-robin fashion.
+ 2. ``yield 0.2`` (A number). Thread delays for a time period in seconds.
+ 3. ``yield from wait(tim)`` As above, but handles arbitrarily long delays.
+ 4. ``yield obj`` (A ``Poller`` object). Thread waits on a user defined event.
+ 5. ``yield obj`` (A ``Pinblock`` object). Special class: thread waits on a pin state change.
 
-Other ``Waitfor`` classes support round robin scheduling, waiting on a Pyboard pin state change,
-or waiting on an arbitrary user defined event. The last two enable a thread to block pending
-an event while other threads continue to run.
+These objects are described in detail below, along with two others which are supplied for
+compatibility with existing code or specialist use.
 
 # The Scheduler
 
@@ -121,6 +124,9 @@ to completion without executing ``yield``.
 ``add_thread`` returns an integer representing a unique ID for the thread. This may be used to
 stop or pause the thread.
 
+The scheduler constructor accepts an optional argument defaulting to ``True``. If set ``False``
+garbage collection is disabled: see below for an explanation of this.
+
 # Ways of Scheduling
 
 When a thread yields, the scheduler returns information about the reason it was rescheduled.
@@ -141,6 +147,8 @@ def mythread():
         yield # round-robin is the default
 ```
 
+The ``Roundrobin`` class is deprecated and exists for compatibility reasons only.
+
 ### Time delay scheduling
 
 If a thread needs to wait, ideally it should do so by allowing other threads to run for the
@@ -150,7 +158,7 @@ duration of the delay. This is accomplished as follows:
 def mythread():
     while True:
         # do stuff
-        yield from wait(0.4) # 400ms delay
+        yield 0.4 # 400ms delay
 ```
 
 The scheduler will not resume until after the specified duration has elapsed. A thread which
@@ -160,6 +168,15 @@ actual time of resumption may overrun, typically by a few milliseconds. Where de
 microsecond region are required, there is no alternative than to use the ``pyb.udelay()``
 function.
 
+The above syntax is valid for delays up to 1073 seconds. For arbitrarily log delays issue
+
+```python
+def mythread():
+    while True:
+        # do stuff
+        yield from wait(2000)
+```
+
 The amount of overrun may be retrieved as follows (see paragraph "Return from Yield" for
 explanation).
 
@@ -167,14 +184,14 @@ explanation).
 def mythread():
     while True:
         # do stuff
-        result = yield from wait(0.4) # 400ms delay
-        overrun = result[2]  # in us
+        result = yield 0.4  # 400ms delay
+        overrun = result[2] # in us
 ```
 
-There is no upper bound on the delay. There lower bound is zero but in practice periods
+The upper bounds on delays are explained above. The lower bound is zero but in practice periods
 below a few milliseconds result in imprecise delays for the reason described. Further, repeatedly
-issuing short delays may cause the thread to hog execution because timed-out threads
-have priority over round robin ones.
+issuing short delays may cause the thread to hog execution because timed-out threads have priority
+over round robin ones.
 
 ### Wait on an Arbitrary Event
 
@@ -243,7 +260,7 @@ many cases this may be ignored but where it is required it is accessed as follow
 
 ```python
 reason = yield wf() # wf is a Poller or Pinblock object
-reason2 = yield from wait(0.1) # retrieve overshoot
+reason2 = yield 0.1 # retrieve overshoot
 ```
 
 The data is a 3-tuple. It contains information about why the thread was scheduled. Elements are:
@@ -253,7 +270,8 @@ The data is a 3-tuple. It contains information about why the thread was schedule
  that  value.
 * elem[2] 0 unless thread was waiting on a timer or timeout when it holds no. of us it is late.
 
-By implication if the thread yields a ``Roundrobin`` instance the return tuple will be (0, 0, 0).
+By implication if the thread yields nothing or a ``Roundrobin`` instance the return tuple will be
+(0, 0, 0).
 
 Where a timeout is provided to a ``Poller`` or ``Pinblock`` the value of item 2 enables the thread
 to determine whether it was rescheduled because of the event or because of a timeout. A zero
@@ -384,10 +402,10 @@ from usched import Sched, wait
 from lcdthread import LCD, PINLIST
 def lcd_thread(mylcd):
     mylcd[0] = "MicroPython"
-    yield Roundrobin()
+    yield
     while True:
         mylcd[1] = "{:11d}us".format(pyb.micros())
-        yield from wait(1)
+        yield 1
 
 objSched = Sched()
 lcd0 = LCD(PINLIST, objSched, cols = 16)
@@ -428,19 +446,19 @@ User methods:
 ### Timing
 
 The scheduler's timing is based on pyb.micros(). The use of microsecond timing shouldn't lead the
-user into hopeless optimism: if you want a delay of 1ms exactly don't issue yield from wait(0.001)
+user into hopeless optimism: if you want a delay of 1ms exactly don't issue ``yield 0.001``
 and expect to get a one millisecond delay. It's a cooperative scheduler. Another thread will be
 running when the period elapses. Until that thread decides to yield your thread has no chance of
 restarting. Even then a higher priority thread such as one blocked on an interrupt may, by then, be
 pending. So, while the minimum delay will be 1ms, the maximum is dependent on the other code you
 have running. On the Pyboard board don't be too surprised to see delays of many milliseconds.
 
-If you want precise nonblocking timing, especially at millisecond level or better, use one of the
+If you want precise non-blocking timing, especially at millisecond level or better, use one of the
 hardware timers.
 
 Avoid issuing short timeout values. A thread which does so will tend to hog execution at the
 expense of other threads. The well mannered way to yield control in the expectation of restarting
-soon is to yield a Roundrobin instance. Such a thread will resume when other round-robin threads
+soon is to simply issue ``yield``. Such a thread will resume when other round-robin threads
 (and higher priority threads such as expiring delays) have been scheduled.
 
 ### Garbage collection
@@ -459,6 +477,7 @@ badly fragmented heap can cause irretrievable allocation failures.
 
 The scheduler has a built-in thread ``_idle_thread`` which is scheduled on a round robin basis. This
 performs a GC if it hasn't been done for an interval defined by ``Sched.GCTIME`` (current 50ms).
+Garbage collection can be disabled by passing ``gc_enable = False`` to the scheduler constructor.
 
 ### Pinblock objects and interrupts
 
@@ -505,14 +524,14 @@ def instrument(objSched=None, interval=0.1, duration=10):
     max_overrun = 0
     while count:
         count -= 1
-        result = yield from wait(interval)
+        result = yield interval
         max_overrun = max(max_overrun, result[2])
     print('Maximum overrun = {}us'.format(max_overrun))
     if objSched is not None:
         objSched.stop()
 ```
 
-As a general guide, in trivial programs such as ledflash.py a ``yield from wait()`` can be
+As a general guide, in trivial programs such as ledflash.py a ``yield interval`` can be
 expected to overrun by just over 2ms maximum.
 
 # Notes for beginners
@@ -563,12 +582,13 @@ for x in range(1000000):
     # do something time consuming
 ```
 
-it won't lock out other threads.
+it won't lock out other threads, whereas without a ``yield`` statement it will lock a cooperative
+scheduler solid.
 
 Alas this benefit pales into insignificance compared to the drawbacks. Some of these are covered in
 the documentation on writing [interrupt handlers](http://docs.micropython.org/en/latest/reference/isr_rules.html).
 In a pre-emptive model every thread can interrupt every other thread. It is generally much easier
-to find and fix faults caused by a thread which fails to ``yield`` periodically than locating the
+to find and fix a lockup resulting from a thread which fails to ``yield`` than locating the
 sometimes deeply subtle bugs which can occur in pre-emptive code.
 
 To put this in simple terms, if you write a thread in MicroPython, you can be sure that variables
@@ -583,9 +603,9 @@ threads allow for simple context switching; this scheduler employs conventional 
 
 In non-trivial applications threads need to communicate. Conventional Python techniques can be
 employed. These include the use of global variables or declaring threads as object methods which
-can then share instance variables. Or a mutable object may be passed as a thread argument.
-Pre-emptive systems usually mandate complex classes to achieve "thread safe" communications;
-in a cooperative system these are seldom required.
+can then share instance variables. Alternatively a mutable object may be passed as a thread
+argument. Pre-emptive systems usually mandate specialist classes to achieve "thread safe"
+communications; in a cooperative system these are seldom required.
 
 ### Polling
 
@@ -595,13 +615,3 @@ periodically. A faster and more elegant way is to delegate this activity to the 
 thread then suspends execution of that thread pending the result of a user supplied callback
 function, which is run by the scheduler. From the thread's point of view it blocks pending an
 event - with an optional timeout available. See paragraph "Wait on an Arbitrary Event" above.
-
-# Appendix: for scheduler purists
-
-Why do I sort a list rather than use a heapq? Firstly the heapq implementation isn't very micro.
-Secondly, the only list that gets sorted is a list of threads which were waiting on a time or an
-event: this has now occurred and they are ready to run. Such a list would typically comprise zero
-or one element. If there were five on the list I'd start to worry about the application design.
-Sorting a five element list of random elements of the type in use takes 36us on the Pyboard.
-Zero or one element takes 13us. These times are minor by comparison with the latency implied by a
-single higher priority task on the list.

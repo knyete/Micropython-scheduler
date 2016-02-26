@@ -4,7 +4,7 @@
 # Display must use the Hitachi HD44780 controller. This demo assumes a 16*2 character unit.
 
 import pyb
-from usched import Sched, wait
+from usched import Sched
 from lcdthread import LCD, PINLIST                          # Library supporting Hitachi LCD module
 
 # HARDWARE
@@ -15,14 +15,14 @@ from lcdthread import LCD, PINLIST                          # Library supporting
 # THREADS:
 
 def stop(fTim, objSch):                                     # Stop the scheduler after fTim seconds
-    yield from wait(fTim)
+    yield fTim
     objSch.stop()
 
 def lcd_thread(mylcd):
     mylcd[0] = "MicroPython"
     while True:
         mylcd[1] = "{:11d}uS".format(pyb.micros())
-        yield from wait(1)
+        yield 1
 
 # USER TEST PROGRAM
 # Runs forever unless you pass a number of seconds

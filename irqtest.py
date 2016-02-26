@@ -15,7 +15,7 @@
 # The optional pushbuttons print a message when operated.
 
 import pyb
-from usched import Sched, Poller, Timeout, Pinblock, wait
+from usched import Sched, Poller, Timeout, Pinblock
 from switch import Switch                                   # Library supporting debounced switches
 
 # HARDWARE 
@@ -27,7 +27,7 @@ from switch import Switch                                   # Library supporting
 # THREADS:
 
 def stop(fTim, objSch):                                     # Stop the scheduler after fTim seconds
-    yield from wait(fTim)
+    yield fTim
     objSch.stop()
 
 def oscillator(freq_hz = 1):                                # Toggles X7 forever.

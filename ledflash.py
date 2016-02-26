@@ -4,17 +4,17 @@
 # Flashes the onboard LED's each at a different rate. Stops after ten seconds.
 
 import pyb
-from usched import Sched, wait
+from usched import Sched
 
 # Run on MicroPython board bare hardware
 # THREADS:
 def stop(fTim, objSch):                                     # Stop the scheduler after fTim seconds
-    yield from wait(fTim)
+    yield fTim
     objSch.stop()
 
 def toggle(objLED, time):
     while True:
-        yield from wait(time)
+        yield time
         objLED.toggle()
     
 # USER TEST FUNCTION

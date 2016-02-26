@@ -3,7 +3,7 @@
 # V1.02 6th Sep 2014
 # Copyright Peter Hinch 2016 Released under the MIT license
 
-from usched import Sched,  wait
+from usched import Sched
 
 # Run on MicroPython board bare hardware
 # THREADS:
@@ -11,7 +11,7 @@ from usched import Sched,  wait
 def subthread(lstResult):                                   # Gets a list for returning result(s) to caller
     yield
     print("Subthread started")                              # In this test list simply contains a boolean
-    yield from wait(1)
+    yield 1
     print("Subthread end")
     lstResult[0] = True
 
