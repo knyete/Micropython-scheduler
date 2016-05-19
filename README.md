@@ -1,10 +1,14 @@
 # Micropython-scheduler
 
 A set of libraries for writing threaded code on the MicroPython board. It has been tested on
-Pyboards V1.0 and 1.1 but should run on Pyboard Lites. Drivers are included for switches, 
-push-buttons and alphanumeric LCD displays.
+Pyboards V1.0 and 1.1 and on the Pyboard Lite. Drivers are included for switches, push-buttons and
+alphanumeric LCD displays.
 
 Author: Peter Hinch
+V1.05 19th May 2016. Uses utime for improved portability. See Porting below.  
+API change: owing to utime's ``ticks_us()`` rollover the maximum time delay is reduced from 1073 to
+536 seconds. For arbitrary delays use ``yield from wait()`` as before.
+
 V1.04 27th Feb 2016. Now performs garbage collection to reduce heap fragmentation. Improved
 scheduling algorithm. Threads can now pause, resume and kill other threads. Simplified usage.
 
@@ -51,14 +55,15 @@ There are five driver libraries. Items 2-5 inclusive use usched.
  2. switch.py Support for debounced switches.
  3. pushbutton.py Supports callbacks on press, release, long click and double click.
  4. lcdthread.py Supports LCD displays using the Hitachi HD44780 controller chip.
- 5. delay.py A simple retriggerable time delay class.
+ 5. delay.py Classes and functions based on the scheduler: a simple retriggerable time delay class.
+ A means of executing a callback at a future time.
 
 Test/demonstration programs. The first two produce the most interesting demos :)
  1. ledflash.py Flashes the onboard LED's asynchronously.
  2. polltest.py A thread which blocks on a user defined polling function. Needs a board with an
  accelerometer.
  3. roundrobin.py Demonstrates round-robin scheduling.
- 4. irqtest.py Demonstrates a thread which blocks on an interrupt.
+ 4. irqtest.py Demonstrates a thread which blocks on an interrupt (see code for wire links needed).
  5. subthread.py Illustrates dynamic creation and deletion of threads.
  6. lcdtest.py Demonstrates output to an attached LCD display.
  7. instrument.py The scheduler's timing functions employed to instrument code.
@@ -168,7 +173,7 @@ actual time of resumption may overrun, typically by a few milliseconds. Where de
 microsecond region are required, there is no alternative than to use the ``pyb.udelay()``
 function.
 
-The above syntax is valid for delays up to 1073 seconds. For arbitrarily log delays issue
+The above syntax is valid for delays up to 536 seconds. For arbitrarily long delays issue
 
 ```python
 def mythread():
@@ -289,7 +294,7 @@ internally and documented as it may be of use in writing device drivers: instant
 once and re-using it will offer some performance advantage.
 
 The constructor takes a single argument ``tim`` being the delay in seconds. The maximum permitted
-value is defined by ``MAXTIME`` and is 1073 seconds. A ``TimerException`` will be raised if the
+value is defined by ``MAXSECS`` and is 536 seconds. A ``TimerException`` will be raised if the
 value exceeds this.
 
 Yielding a ``Timeout`` with function call syntax will reset the timeout to the value specified
@@ -439,7 +444,31 @@ User methods:
  1. ``trigger`` argument ``duration``: callback will occur after ``duration`` seconds unless
  ``trigger`` is called again to reset the duration. Like feeding a watchdog.
  2. ``stop`` No argument. The callback will never occur unless ``trigger`` is called first.
- 3. ``running`` No argument. Returns the running status of the object,
+ 3. ``running`` No argument. Returns the running status of the object.
+
+## future function
+
+Provided by delay.py. A function which causes a user defined callback to be executed at a future
+time.
+
+Positional arguments:
+ 1. ``objSched`` Mandatory. The scheduler.
+ 2. ``time_to_run`` Mandatory. Number of seconds in the future when callback must run.
+ 3. ``callback``  Mandatory. The callback function or thread.
+ 4. ``callback_args`` A tuple of arguments for the callback. Default ``()`` (no args).
+
+If ``callback`` is a thread it will be added to the scheduler when the time elapses. Thread
+initialisation will commence at that time. The thread should be passed in the same way as a
+callback function i.e. not using function call syntax:
+
+```python
+future(objsched, 30, my_thread, (thread_arg1, thread_arg2))
+```
+
+A ``TimerException`` will be raised if the time is not in the future (<= 0).
+
+With judicious use of the ``utime`` library callbacks may be scheduled to run at specified absolute
+(rather than relative) times.
 
 # Implementation notes
 
@@ -506,8 +535,8 @@ other round-robin thread will run before the first runs again.
 ### Program hangs and errors
 
 Hanging almost always happens because a thread has blocked without yielding: this will hang the
-entire system. A common cause of exceptions is to ``yield`` something other than an object derived
-from the ``Waitfor`` class.
+entire system. A common cause of exceptions is to ``yield`` something other than the objects
+detailed above.
 
 ### Instrumenting your code
 
@@ -615,3 +644,9 @@ periodically. A faster and more elegant way is to delegate this activity to the 
 thread then suspends execution of that thread pending the result of a user supplied callback
 function, which is run by the scheduler. From the thread's point of view it blocks pending an
 event - with an optional timeout available. See paragraph "Wait on an Arbitrary Event" above.
+
+# Porting
+
+usched.py uses standard MicroPython syntax and libraries with one exception: the ``Pinblock``
+class. This is Pyboard specific in its use of interrupts. If the target doesn't support the pyb
+library the ``Pinblock`` class should be ignored, deleted or adapted.
