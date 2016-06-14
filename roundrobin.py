@@ -21,7 +21,7 @@ def robin(text):
 # USER TEST PROGRAM
 
 def test(duration = 0):
-    objSched = Sched()
+    objSched = Sched(True, 1) # heartbeat on LED 1
     objSched.add_thread(robin("Thread 1"))
     objSched.add_thread(robin("Thread 2"))
     objSched.add_thread(robin("Thread 3"))

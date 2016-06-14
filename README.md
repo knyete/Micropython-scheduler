@@ -129,8 +129,12 @@ to completion without executing ``yield``.
 ``add_thread`` returns an integer representing a unique ID for the thread. This may be used to
 stop or pause the thread.
 
-The scheduler constructor accepts an optional argument defaulting to ``True``. If set ``False``
-garbage collection is disabled: see below for an explanation of this.
+The scheduler constructor accepts two optional poitional arguments:
+ * ``gc_enable`` Default ``True``. If set ``False`` garbage collection is disabled: see below for
+ an explanation of this.
+ * ``heartbeat`` Default ``None``. Applies to Pyboard only. If an integer in range 1 to 4 is
+ passed, the corresponding LED will flash when the scheduler is running. Provides a visual check
+ that no thread has hogged the processing by failing to yield.
 
 # Ways of Scheduling
 
