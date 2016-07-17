@@ -1,7 +1,8 @@
 # Micropython-scheduler
 
 A set of libraries for writing threaded code on the MicroPython board. It has been tested on
-Pyboards V1.0 and 1.1 and on the Pyboard Lite. Drivers are included for switches, push-buttons and
+Pyboards V1.0 and 1.1 and on the Pyboard Lite, also on ESP8266. It is incompatible with the WiPy
+owing to its use of floats for time values. Drivers are included for switches, push-buttons and
 alphanumeric LCD displays.
 
 Author: Peter Hinch
