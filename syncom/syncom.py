@@ -22,8 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Timing: 2.4mS per char between Pyboard and ESP8266 with latency >= 1 i.e. ~1.6Kbps
-# TODO callback?
+# Timing: 4mS per char between Pyboard and ESP8266 with latency >= 1 i.e. ~1.75Kbps
+# TODO callback? Latency default seems to result in chars being exchanged in pairs. Why?
+# Improve sync: re-send a syn char until sync acheieved.
 
 import pickle
 
