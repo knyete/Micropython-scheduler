@@ -22,20 +22,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Timing: 4mS per char between Pyboard and ESP8266 with latency >= 1 i.e. ~1.75Kbps
-# TODO callback? Latency default seems to result in chars being exchanged in pairs. Why?
-# Improve sync: re-send a syn char until sync acheieved.
+# Timing: 4.5mS per char between Pyboard and ESP8266 i.e. ~1.55Kbps
 
 import pickle
 
 _BITS_PER_CH = const(7)
-_BITS_SYN = const(24)
+_BITS_SYN = const(8)
 
 class SynCom(object):
-    syn = 0x5dfa6e
+    syn = 0x9d
     def __init__(self, objsched, passive, ckin, ckout, din, dout, latency=5, verbose=True):
         self.passive = passive
-        self.latency = min(latency, 1) # No. of bytes between scheduler yield
+        self.latency = max(latency, 1) # No. of bytes between scheduler yield
         self.verbose = verbose
         if verbose:
             self.idstr = 'passive' if self.passive else 'initiator'
@@ -115,11 +113,11 @@ class SynCom(object):
                     self.lstrx.append(getstr)
                 getstr = ''
 
-            if latency == 0:        # yield at intervals of N characters
+            if latency > 0:        # yield at intervals of N characters
+                latency -= 1
+            else:
                 latency = self.latency
                 yield
-            else:
-                latency -= 1
 
     def _get_byte(self):
         if self.passive:
