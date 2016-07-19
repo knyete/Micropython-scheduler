@@ -60,9 +60,9 @@ with SynCom(objsched, True, mckin, mckout, mrx, mtx) as channel:
 ## Rationale
 
 The obvious question is why not use I2C or SPI. The reason is the nature of the slave interfaces:
-these protocols are designed to interface to hardware devices which guarantee a timely response.
-The MicroPython slave drivers achieve this by means of blocking system calls. These are
-incompatible with asynchronous programming.
+these protocols are designed for the case where the slave is a hardware devices which guarantees a
+timely response. The MicroPython slave drivers achieve this by means of blocking system calls.
+Such calls are incompatible with asynchronous programming.
 
 The two ends of the link are defined as ``initiator`` and ``passive``. These describe their roles
 in initialisation. From a user perspective the protocol is symmetrical.
@@ -78,6 +78,8 @@ in initialisation. From a user perspective the protocol is symmetrical.
 Each device has the following logical connections, din, dout, ckin, ckout. The din (data in) of one
 device is linked to dout (data out) of the other, and vice versa. Likewise the clock signals ckin
 and ckout. To ensure reliable startup the clock signals should be pulled down with 10K resistors.
+The Pyboard's internal pulldown is not suitable. This is because after reset, Pyboard pins are high
+impedance. If the other end of the link starts first, it will see a floating input.
 
 | Initiator   | Passive     |
 |:-----------:|:-----------:|
@@ -90,7 +92,7 @@ and ckout. To ensure reliable startup the clock signals should be pulled down wi
 
 This has the following dependencies.
 
-[pickle.py](https://github.com/micropython/micropython-lib/tree/master/pickle)
+[pickle.py](https://github.com/micropython/micropython-lib/tree/master/pickle)  
 [usched.py](https://github.com/peterhinch/Micropython-scheduler.git)
 
 # class SynCom
@@ -99,8 +101,8 @@ This has the following dependencies.
 
 Positional arguments:
 
- 1. ``objsched`` The scheduler instance
- 2. ``passive`` Boolean. One end of the link sets this ``True``, the other ``False``
+ 1. ``objsched`` The scheduler instance.
+ 2. ``passive`` Boolean. One end of the link sets this ``True``, the other ``False``.
  3. ``ckin`` An initialised input ``Pin`` instance.
  4. ``ckout`` An initialised output ``Pin`` instance. It should be set to zero.
  5. ``din`` An initialised input ``Pin`` instance.
