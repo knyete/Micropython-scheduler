@@ -60,14 +60,6 @@ class SynCom(object):
             self.phase = 1
         objsched.add_thread(self._run())
 
-# Context manager ensures reliable start under test conditions where program is interrupted
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        self.dout(0)
-        self.ckout(0)
-
 # Queue an object for tx. Convert to string NOW: snapshot of current object state
     def send(self, obj):
         self.lsttx.append(pickle.dumps(obj))
@@ -92,32 +84,35 @@ class SynCom(object):
         send_idx = None             # current character index. None: no current string
         getstr = ''                 # receive string
         latency = self.latency      # No of chars to send before yield
-        while True:
-            if send_idx is None:
-                if len(self.lsttx):
-                    sendstr = self.lsttx.pop(0) # oldest first
-                    send_idx = 0
-            if send_idx is not None:
-                if send_idx < len(sendstr):
-                    self.odata = ord(sendstr[send_idx])
-                    send_idx += 1
-                else:
-                    send_idx = None
-            if send_idx is None:    # send zeros when nothing to send
-                self.odata = 0
-            self._get_byte()
-            if self.indata:
-                getstr = ''.join((getstr, chr(self.indata)))
-            else:                   # Got 0:
-                if len(getstr):     # if there's a current string, it's complete
-                    self.lstrx.append(getstr)
-                getstr = ''
+        try:
+            while True:
+                if send_idx is None:
+                    if len(self.lsttx):
+                        sendstr = self.lsttx.pop(0) # oldest first
+                        send_idx = 0
+                if send_idx is not None:
+                    if send_idx < len(sendstr):
+                        self.odata = ord(sendstr[send_idx])
+                        send_idx += 1
+                    else:
+                        send_idx = None
+                if send_idx is None:# send zeros when nothing to send
+                    self.odata = 0
+                self._get_byte()
+                if self.indata:
+                    getstr = ''.join((getstr, chr(self.indata)))
+                else:               # Got 0:
+                    if len(getstr): # if there's a current string, it's complete
+                        self.lstrx.append(getstr)
+                    getstr = ''
 
-            if latency > 0:        # yield at intervals of N characters
                 latency -= 1
-            else:
-                latency = self.latency
-                yield
+                if latency <= 0:    # yield at intervals of N characters
+                    latency = self.latency
+                    yield
+        finally:
+            self.dout(0)
+            self.ckout(0)
 
     def _get_byte(self):
         if self.passive:

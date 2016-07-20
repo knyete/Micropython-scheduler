@@ -21,31 +21,32 @@ from usched import Sched
 from syncom import SynCom
 from machine import Pin
 
-def my_thread(chan): # Just echoes objects back
+ # Thread just echoes objects back
+def my_thread(chan):
     yield
     while True:
-        while not chan.any(): # Wait for input
+        while not chan.any():   # Wait for input
             yield
-        obj = chan.get() # Receive an object
-        chan.send(obj) # send it back
+        obj = chan.get()        # Receive an object
+        chan.send(obj)          # send it back
 
-mtx = Pin(14, Pin.OUT) # Define pins
+mtx = Pin(14, Pin.OUT)          # Define pins
 mckout = Pin(15, Pin.OUT, value = 0) # clock must be initialised to zero.
 mrx = Pin(13, Pin.IN)
 mckin = Pin(12, Pin.IN)
 
-objsched = Sched() # Instantiate scheduler
-with SynCom(objsched, True, mckin, mckout, mrx, mtx) as channel:
-    objsched.add_thread(my_thread(channel))
-    objsched.run()
+objsched = Sched()              # Instantiate scheduler
+channel = SynCom(objsched, True, mckin, mckout, mrx, mtx)
+objsched.add_thread(my_thread(channel))
+objsched.run()
 ```
 
 ## Advantages
 
  * It should be portable to any MicroPython platform.
- * It is not dependent on, and does not use, hardware features such as interrupts or timers.
- * Hardware requirement: two output pins and two input pins on each device.
- * It is synchronous, having no timing dependencies.
+ * It does not use hardware features such as interrupts or timers.
+ * Hardware requirement: two arbitrary output pins and two input pins on each device.
+ * The interface is synchronous, having no timing dependencies.
  * It supports full duplex communications (concurrent send and receive).
  * The unit of transmission is an arbitrary Python object.
 
@@ -70,8 +71,8 @@ in initialisation. From a user perspective the protocol is symmetrical.
 # Files
 
  * syncom.py The library.
- * sr_init.py Test program: run with sr_passive.py on other device. Configured for Pyboard.
- * sr_passive.py Test program: sr_init.py runs on other end of link. Configured for ESP8266.
+ * sr_init.py Test program configured for Pyboard: run with sr_passive.py on other device.
+ * sr_passive.py Test program configured for ESP8266: sr_init.py runs on other end of link.
 
 # Hardware connections
 
@@ -79,7 +80,8 @@ Each device has the following logical connections, din, dout, ckin, ckout. The d
 device is linked to dout (data out) of the other, and vice versa. Likewise the clock signals ckin
 and ckout. To ensure reliable startup the clock signals should be pulled down with 10K resistors.
 The Pyboard's internal pulldown is not suitable. This is because after reset, Pyboard pins are high
-impedance. If the other end of the link starts first, it will see a floating input.
+impedance. If the other end of the link starts first, it will see a floating input. The reference
+Adafruit Feather Huzzah board has a 10K pulldown on pin 15.
 
 | Initiator   | Passive     |
 |:-----------:|:-----------:|
@@ -119,9 +121,12 @@ Positional arguments:
  return ``None``.
  * ``any`` Return the number of received objects in the queue.
 
-## Context Manager
+# Notes
 
-The class supports use in a CM. This is optional and is designed to aid debugging. If a program
-fails or is interrupted the clock signals can be left high. In a subsequent run this prevents the
-interface from synchronising. Use of a CM ensures that the interface is left in a valid state after
-an unhandled exception. See the test programs for example usage.
+The library uses the Python pickle module for object serialisation. This has some restrictions,
+notably on the serialisation of user defined class instances. See the Python documentation.
+
+I have encountered situations where the test program running on the ESP8266 fails to acquire sync.
+The reason for this is unclear but a soft reset clears the problem. If run from main.py it starts
+correctly from power up.
+

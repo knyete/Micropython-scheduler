@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# Run on Pyboard
 from machine import Pin
 from usched import Sched
 from syncom import SynCom
@@ -30,24 +31,22 @@ import utime
 def initiator_thread(chan):
     yield
     so = ['test', 0, 0]
-    for x in range(4): # Test full duplex by sending 4 in succession
+    for x in range(4):          # Test full duplex by sending 4 in succession
         so[1] = x
         chan.send(so)
         yield
-    while True:
-        while not chan.any(): # wait for response
-            yield
-        while chan.any(): # Deal with queue
+    while True:                 # Receive the four responses
+        if chan.any():          # Deal with queue
             si = chan.get()
             print('initiator received', si)
-            yield
-        if si[1] == 3: # received last one
-            break
-    while True:
+            if si[1] == 3:      # received last one
+                break
+        yield
+    while True:                 # At 2 sec intervals send an object and get response
         yield 2
         tim = utime.ticks_ms()
         chan.send(so)
-        while not chan.any(): # wait for response
+        while not chan.any():   # wait for response
             yield
         so = chan.get()
         duration = utime.ticks_diff(tim, utime.ticks_ms())
@@ -61,6 +60,6 @@ def test():
     sckin = Pin(Pin.board.Y8, Pin.IN)
 
     objsched = Sched(heartbeat = 1)
-    with SynCom(objsched, False, sckin, sckout, srx, stx) as channel:
-        objsched.add_thread(initiator_thread(channel))
-        objsched.run()
+    channel = SynCom(objsched, False, sckin, sckout, srx, stx)
+    objsched.add_thread(initiator_thread(channel))
+    objsched.run()

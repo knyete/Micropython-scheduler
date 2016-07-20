@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# Run on ESP8266
 from usched import Sched
 from syncom import SynCom
 from machine import Pin
@@ -33,19 +34,16 @@ def passive_thread(chan):
             yield
         obj = chan.get()
         print('passive received: ', obj)
-        obj[2] += 1 # modify object and return
+        obj[2] += 1                         # modify object and send it back
         chan.send(obj)
 
 def test():
-    mtx = Pin(14, Pin.OUT) # Define passive pins
-    mckout = Pin(15, Pin.OUT, value = 0) # clocks must be initialised to zero. Pin 15 has pulldown
+    mtx = Pin(14, Pin.OUT)                  # Define pins
+    mckout = Pin(15, Pin.OUT, value = 0)    # clocks must be initialised to zero.
     mrx = Pin(13, Pin.IN)
-    mckin = Pin(12, Pin.IN) # add 10K pulldown
+    mckin = Pin(12, Pin.IN)
 
     objsched = Sched()
-    with SynCom(objsched, True, mckin, mckout, mrx, mtx) as channel:
-        objsched.add_thread(passive_thread(channel))
-        objsched.run()
-
-#test()
-
+    channel = SynCom(objsched, True, mckin, mckout, mrx, mtx)
+    objsched.add_thread(passive_thread(channel))
+    objsched.run()
