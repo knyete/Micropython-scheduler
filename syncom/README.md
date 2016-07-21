@@ -38,7 +38,10 @@ mckin = Pin(12, Pin.IN)
 objsched = Sched()              # Instantiate scheduler
 channel = SynCom(objsched, True, mckin, mckout, mrx, mtx)
 objsched.add_thread(my_thread(channel))
-objsched.run()
+try:
+    objsched.run()
+finally:                        # Under test conditions where code fails or
+    mckout(0)                   # is interrupted, set up hardware for a re-run
 ```
 
 ## Advantages
@@ -49,6 +52,7 @@ objsched.run()
  * The interface is synchronous, having no timing dependencies.
  * It supports full duplex communications (concurrent send and receive).
  * The unit of transmission is an arbitrary Python object.
+ * All methods are non-blocking.
 
 ## Limitations
 
