@@ -62,4 +62,8 @@ def test():
     objsched = Sched(heartbeat = 1)
     channel = SynCom(objsched, False, sckin, sckout, srx, stx)
     objsched.add_thread(initiator_thread(channel))
-    objsched.run()
+    try:
+        objsched.run()
+    finally:
+        sckout.value(0)
+

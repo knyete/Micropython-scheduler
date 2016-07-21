@@ -46,4 +46,8 @@ def test():
     objsched = Sched()
     channel = SynCom(objsched, True, mckin, mckout, mrx, mtx)
     objsched.add_thread(passive_thread(channel))
-    objsched.run()
+    try:
+        objsched.run()
+    finally:
+        mckout(0)
+

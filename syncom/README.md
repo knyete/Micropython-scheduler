@@ -80,12 +80,14 @@ in initialisation. From a user perspective the protocol is symmetrical.
 
 # Hardware connections
 
-Each device has the following logical connections, din, dout, ckin, ckout. The din (data in) of one
-device is linked to dout (data out) of the other, and vice versa. Likewise the clock signals ckin
-and ckout. To ensure reliable startup the clock signals should be pulled down with 10K resistors.
-The Pyboard's internal pulldown is not suitable. This is because after reset, Pyboard pins are high
-impedance. If the other end of the link starts first, it will see a floating input. The reference
-Adafruit Feather Huzzah board has a 10K pulldown on pin 15.
+Each device has the following logical connections, ``din``, ``dout``, ``ckin``, ``ckout``. The
+``din`` (data in) of one device is linked to ``dout`` (data out) of the other, and vice versa.
+Likewise the clock signals ``ckin`` and ``ckout``. To ensure reliable startup the clock signals
+should be pulled down with 10K resistors. The Pyboard's internal pulldown is not suitable. This is
+because after reset, Pyboard pins are high impedance. If the other end of the link starts first, it
+will see a floating input. It is best to avoid using pin 15 as an input as it is used to detect
+boot mode. On the reference board it has a 10K pull-down so using it as the ``ckout`` pin is
+permissible and saves the need for an external resistor.
 
 | Initiator   | Passive     |
 |:-----------:|:-----------:|
