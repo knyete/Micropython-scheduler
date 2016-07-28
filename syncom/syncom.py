@@ -77,6 +77,8 @@ class SynCom(object):
         yield
         while self.indata != self.syn:
             yield from self._synchronise() # Don't hog CPU while waiting for start
+        self.lstrx = [] # ? Necessary even though done in ctor. Why?
+#        self.lsttx = [] No need: allow transmissions to be queued before sync
         if self.verbose:
             print(self.idstr, ' synchronised')
 

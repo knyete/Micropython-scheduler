@@ -6,6 +6,7 @@ owing to its use of floats for time values. Drivers are included for switches, p
 alphanumeric LCD displays.
 
 Author: Peter Hinch
+V1.06 28th July 2016. Optional heartbeat LED on Pyboard and ESP8266.
 V1.05 19th May 2016. Uses utime for improved portability. See Porting below.  
 API change: owing to utime's ``ticks_us()`` rollover the maximum time delay is reduced from 1073 to
 536 seconds. For arbitrary delays use ``yield from wait()`` as before.
@@ -133,9 +134,10 @@ stop or pause the thread.
 The scheduler constructor accepts two optional poitional arguments:
  * ``gc_enable`` Default ``True``. If set ``False`` garbage collection is disabled: see below for
  an explanation of this.
- * ``heartbeat`` Default ``None``. Applies to Pyboard only. If an integer in range 1 to 4 is
- passed, the corresponding LED will flash when the scheduler is running. Provides a visual check
- that no thread has hogged the processing by failing to yield.
+ * ``heartbeat`` Default ``None``. Applies to Pyboard and esp8266. On the Pyboard, if an integer in
+ range 1 to 4 is passed, the corresponding LED will flash when the scheduler is running. On the
+ esp8266 any integer will cause the blue LED to flash (if fitted). Provides a visual check that no
+ thread has hogged the Python VM by failing to yield.
 
 # Ways of Scheduling
 
