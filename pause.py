@@ -5,6 +5,7 @@
 import pyb
 from usched import Sched
 
+status = ['terminated', 'running', 'paused']
 # Run on MicroPython board bare hardware
 # THREADS:
 
@@ -22,13 +23,15 @@ def pauser(objSched, thread):
     for _ in range(3):
         yield 1
         objSched.pause(thread)
-        print('Thread 2 paused')
+        print('Thread 2 paused: status {}'.format(status[objSched.status(thread)]))
         yield 1
         objSched.resume(thread)
-        print('thread 2 resumed')
+        print('thread 2 resumed: status {}'.format(status[objSched.status(thread)]))
     yield 1
     objSched.stop(thread)
-    print('thread 2 killed')
+    print('thread 2 killed: status {}'.format(status[objSched.status(thread)]))
+    yield
+    print('thread 2 no longer on threadlist: status {}'.format(status[objSched.status(thread)]))
 
 # USER TEST PROGRAM
 

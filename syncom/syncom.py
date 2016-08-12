@@ -1,4 +1,5 @@
-# syncom.py Synchronous communication channel between two MicroPython platforms. 14 Jul 16
+# syncom.py Synchronous communication channel between two MicroPython
+# platforms. 14 Jul 16 
 
 # The MIT License (MIT)
 #
@@ -29,11 +30,14 @@ import pickle
 _BITS_PER_CH = const(7)
 _BITS_SYN = const(8)
 
+
 class SynCom(object):
     syn = 0x9d
-    def __init__(self, objsched, passive, ckin, ckout, din, dout, latency=5, verbose=True):
+
+    def __init__(self, objsched, passive, ckin, ckout, din, dout, latency=5,
+                 verbose=True):
         self.passive = passive
-        self.latency = max(latency, 1) # No. of bytes between scheduler yield
+        self.latency = max(latency, 1)  # No. of bytes between scheduler yield
         self.verbose = verbose
         if verbose:
             self.idstr = 'passive' if self.passive else 'initiator'
@@ -60,7 +64,9 @@ class SynCom(object):
             self.phase = 1
         objsched.add_thread(self._run())
 
-# Queue an object for tx. Convert to string NOW: snapshot of current object state
+
+# Queue an object for tx. Convert to string NOW: snapshot of current
+# object state
     def send(self, obj):
         self.lsttx.append(pickle.dumps(obj))
 
@@ -75,22 +81,22 @@ class SynCom(object):
         if self.verbose:
             print(self.idstr, ' awaiting sync...')
         yield
-        while self.indata != self.syn:
-            yield from self._synchronise() # Don't hog CPU while waiting for start
-        self.lstrx = [] # ? Necessary even though done in ctor. Why?
+        while self.indata != self.syn:  # Don't hog CPU while waiting for start
+            yield from self._synchronise()
+        self.lstrx = []  # ? Necessary even though done in ctor. Why?
 #        self.lsttx = [] No need: allow transmissions to be queued before sync
         if self.verbose:
             print(self.idstr, ' synchronised')
 
         sendstr = ''                # string for transmission
-        send_idx = None             # current character index. None: no current string
+        send_idx = None             # character index. None: no current string
         getstr = ''                 # receive string
         latency = self.latency      # No of chars to send before yield
         try:
             while True:
                 if send_idx is None:
                     if len(self.lsttx):
-                        sendstr = self.lsttx.pop(0) # oldest first
+                        sendstr = self.lsttx.pop(0)  # oldest first
                         send_idx = 0
                 if send_idx is not None:
                     if send_idx < len(sendstr):
@@ -98,13 +104,13 @@ class SynCom(object):
                         send_idx += 1
                     else:
                         send_idx = None
-                if send_idx is None:# send zeros when nothing to send
+                if send_idx is None:  # send zeros when nothing to send
                     self.odata = 0
                 self._get_byte()
                 if self.indata:
                     getstr = ''.join((getstr, chr(self.indata)))
-                else:               # Got 0:
-                    if len(getstr): # if there's a current string, it's complete
+                else:                # Got 0:
+                    if len(getstr):  # if there's a string, it's complete
                         self.lstrx.append(getstr)
                     getstr = ''
 
@@ -118,7 +124,7 @@ class SynCom(object):
 
     def _get_byte(self):
         if self.passive:
-            self.indata = self._get_bit(self.inbits) # MSB is outstanding
+            self.indata = self._get_bit(self.inbits)  # MSB is outstanding
             inbits = 0
             for _ in range(_BITS_PER_CH - 1):
                 inbits = self._get_bit(inbits)
@@ -126,7 +132,7 @@ class SynCom(object):
         else:
             inbits = 0
             for _ in range(_BITS_PER_CH):
-                inbits = self._get_bit(inbits) # LSB first
+                inbits = self._get_bit(inbits)  # LSB first
             self.indata = inbits
 
     def _synchronise(self):         # wait for clock

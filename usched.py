@@ -171,7 +171,7 @@ class Sched(object):
     STATE = const(3)
     DUE = const(4)
     def __init__(self, gc_enable=True, heartbeat=None):
-        self.lstThread = []                     # Entries contain [Waitfor object, function, pid, state]
+        self.lstThread = []                     # Entries contain [Waitfor object, function, pid, state, due]
         self.bStop = False
         self.last_gc = 0
         self.pid = 0
@@ -209,6 +209,14 @@ class Sched(object):
 
     def resume(self, pid):
         self[pid][STATE] = RUNNING
+
+    def status(self, pid):                      # 0 terminated 1 running 2 paused
+        state = 0
+        try:
+            state = self[pid][STATE]
+        except ValueError:
+            pass                                # Thread died
+        return state
 
 # Thread list contains [Waitfor object, generator, pid, state]: Run thread to first yield to acquire 
 # a Waitfor instance and put the resultant thread onto the threadlist

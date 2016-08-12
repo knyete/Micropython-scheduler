@@ -6,7 +6,8 @@ owing to its use of floats for time values. Drivers are included for switches, p
 alphanumeric LCD displays.
 
 Author: Peter Hinch
-V1.06 28th July 2016. Optional heartbeat LED on Pyboard and ESP8266.
+V1.07 11th Aug 2016. Thread status method added.  
+V1.06 28th July 2016. Optional heartbeat LED on Pyboard and ESP8266.  
 V1.05 19th May 2016. Uses utime for improved portability. See Porting below.  
 API change: owing to utime's ``ticks_us()`` rollover the maximum time delay is reduced from 1073 to
 536 seconds. For arbitrary delays use ``yield from wait()`` as before.
@@ -71,6 +72,9 @@ Test/demonstration programs. The first two produce the most interesting demos :)
  7. instrument.py The scheduler's timing functions employed to instrument code.
  8. pushbuttontest.py Demo of pushbutton class.
  9. pause.py Demo of threads controlling each other.
+ 10. syncom directory. A means of communication between boards running MicroPython independent of
+ UARTs or other hardware. It enables the exchange of arbitrary Python objects. Tested between
+ Pyboard and ESP8266. See README.
 
 # Usage
 
@@ -131,13 +135,13 @@ to completion without executing ``yield``.
 ``add_thread`` returns an integer representing a unique ID for the thread. This may be used to
 stop or pause the thread.
 
-The scheduler constructor accepts two optional poitional arguments:
+The scheduler constructor accepts two optional positional arguments:
  * ``gc_enable`` Default ``True``. If set ``False`` garbage collection is disabled: see below for
  an explanation of this.
  * ``heartbeat`` Default ``None``. Applies to Pyboard and esp8266. On the Pyboard, if an integer in
  range 1 to 4 is passed, the corresponding LED will flash when the scheduler is running. On the
  esp8266 any integer will cause the blue LED to flash (if fitted). Provides a visual check that no
- thread has hogged the Python VM by failing to yield.
+ thread has hogged the Python VM by failing to yield or by invoking a blocking system call.
 
 # Ways of Scheduling
 
@@ -308,6 +312,22 @@ Yielding a ``Timeout`` with function call syntax will reset the timeout to the v
 in the constructor.
 
 Example code in irqtest.py and pushbutton.py.
+
+# Thread control
+
+The scheduler provides the following methods to enable threads to control each other. These
+rely on the ``pid`` value returned by the ``add_thread`` method to identify the thread to be
+controlled.  
+``status`` Argument ``pid``. Returns 0 if thread is terminated, 1 if running, 2 if paused.  
+``pause`` Argument ``pid``. Pauses the thread. A ``ValueError`` will be raised if the thread has
+terminated.  
+``resume`` Argument ``pid``. Resumes a paused thread. A ``ValueError`` will be raised if the thread
+has terminated.  
+``stop`` Optional argument ``pid``. Terminates a thread. A ``ValueError`` will be raised if the
+thread has already terminated. If the argument is 0 or absent, the scheduler will be terminated.
+
+Avoid writing a thread which waits for subthread to terminate by looping on its status: it's
+usually more efficient to use ``yield from mythread()``.
 
 # Threaded device drivers
 
