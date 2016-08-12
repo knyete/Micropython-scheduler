@@ -131,6 +131,9 @@ Positional arguments:
 
 The library uses the Python pickle module for object serialisation. This has some restrictions,
 notably on the serialisation of user defined class instances. See the Python documentation.
+Currently there is a MicroPython issue #2280 where a memory leak occurs if you pass a string
+which varies regularly. Pickle saves a copy of the string (if it hasn't already occurred) each time
+until RAM is exhausted. The workround is to use any data type other than strings or bytes objects.
 
 I have encountered situations where the test program running on the ESP8266 fails to acquire sync.
 The reason for this is unclear but a soft reset clears the problem. If run from main.py it starts
