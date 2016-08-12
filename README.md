@@ -74,7 +74,7 @@ Test/demonstration programs. The first two produce the most interesting demos :)
  9. pause.py Demo of threads controlling each other.
  10. syncom directory. A means of communication between boards running MicroPython independent of
  UARTs or other hardware. It enables the exchange of arbitrary Python objects. Tested between
- Pyboard and ESP8266. See README.
+ Pyboard and ESP8266. See [readme](./syncom/README.md).
 
 # Usage
 
