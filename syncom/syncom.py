@@ -36,9 +36,11 @@ class SynCom(object):
 
     def __init__(self, objsched, passive, ckin, ckout, din, dout, latency=5,
                  verbose=True):
+        self.objsched = objsched
         self.passive = passive
         self.latency = max(latency, 1)  # No. of bytes between scheduler yield
         self.verbose = verbose
+        self.pid = None             # of _run thread
         if verbose:
             self.idstr = 'passive' if self.passive else 'initiator'
 
@@ -62,8 +64,11 @@ class SynCom(object):
             self.ckout(1)
             self.odata >>= 1        # we've sent that bit
             self.phase = 1
-        objsched.add_thread(self._run())
 
+    def start(self, pin_reset = None, reset_state = 0): # Start or restart interface
+        if self.pid is not None:    # Restarting
+            self.objsched.stop(self.pid)
+        self.pid = self.objsched.add_thread(self._run(pin_reset, reset_state))
 
 # Queue an object for tx. Convert to string NOW: snapshot of current
 # object state
@@ -77,7 +82,15 @@ class SynCom(object):
         if self.any():
             return pickle.loads(self.lstrx.pop(0))
 
-    def _run(self):
+    def _run(self, pin_reset, reset_state):
+        yield
+        if pin_reset is not None:
+            if self.verbose:
+                print(self.idstr, ' resetting target...')
+            pin_reset.value(reset_state)
+            yield 0.1
+            pin_reset.value(reset_state ^ 1)
+            yield 1 # let target settle down
         if self.verbose:
             print(self.idstr, ' awaiting sync...')
         yield

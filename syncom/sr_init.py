@@ -58,9 +58,11 @@ def test():
     sckout.value(0) # Don't assert clock until data is set
     srx = Pin(Pin.board.Y7, Pin.IN)
     sckin = Pin(Pin.board.Y8, Pin.IN)
+    reset = Pin(Pin.board.Y4, Pin.OPEN_DRAIN)
 
     objsched = Sched(heartbeat = 1)
     channel = SynCom(objsched, False, sckin, sckout, srx, stx)
+    channel.start(reset, 0)
     objsched.add_thread(initiator_thread(channel))
     try:
         objsched.run()

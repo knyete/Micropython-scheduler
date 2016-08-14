@@ -43,11 +43,13 @@ def test():
     mrx = Pin(13, Pin.IN)
     mckin = Pin(12, Pin.IN)
 
-    objsched = Sched()
+    objsched = Sched(heartbeat=1)
     channel = SynCom(objsched, True, mckin, mckout, mrx, mtx)
+    channel.start()
     objsched.add_thread(passive_thread(channel))
     try:
         objsched.run()
     finally:
         mckout(0)
 
+test()
