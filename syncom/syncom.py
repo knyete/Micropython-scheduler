@@ -1,5 +1,5 @@
 # syncom.py Synchronous communication channel between two MicroPython
-# platforms. 14 Jul 16 
+# platforms. 14 Jul 16
 
 # The MIT License (MIT)
 #
@@ -26,6 +26,7 @@
 # Timing: 4.5mS per char between Pyboard and ESP8266 i.e. ~1.55Kbps
 
 import pickle
+from usched import Poller
 
 _BITS_PER_CH = const(7)
 _BITS_SYN = const(8)
@@ -56,6 +57,7 @@ class SynCom(object):
         self.lstrx = []             # Queue of received strings
 
         self.phase = 0              # Interface initial conditions
+        self.await_obj = Poller(self._pollfunc)
         if passive:
             self.dout(0)
             self.ckout(0)
@@ -65,7 +67,7 @@ class SynCom(object):
             self.odata >>= 1        # we've sent that bit
             self.phase = 1
 
-    def start(self, pin_reset = None, reset_state = 0): # Start or restart interface
+    def start(self, pin_reset=None, reset_state=0):  # Start or restart interface
         if self.pid is not None:    # Restarting
             self.objsched.stop(self.pid)
         self.pid = self.objsched.add_thread(self._run(pin_reset, reset_state))
@@ -77,6 +79,9 @@ class SynCom(object):
 
     def any(self):
         return len(self.lstrx)
+
+    def _pollfunc(self):
+        return 1 if len(self.lstrx) else None
 
     def get(self):
         if self.any():
@@ -90,7 +95,7 @@ class SynCom(object):
             pin_reset.value(reset_state)
             yield 0.1
             pin_reset.value(reset_state ^ 1)
-            yield 1 # let target settle down
+            yield 1  # let target settle down
         if self.verbose:
             print(self.idstr, ' awaiting sync...')
         yield

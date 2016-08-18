@@ -36,18 +36,16 @@ def initiator_thread(chan):
         chan.send(so)
         yield
     while True:                 # Receive the four responses
-        if chan.any():          # Deal with queue
-            si = chan.get()
-            print('initiator received', si)
-            if si[1] == 3:      # received last one
-                break
-        yield
+        yield chan.await_obj    # Deal with queue
+        si = chan.get()
+        print('initiator received', si)
+        if si[1] == 3:          # received last one
+            break
     while True:                 # At 2 sec intervals send an object and get response
         yield 2
         tim = utime.ticks_ms()
         chan.send(so)
-        while not chan.any():   # wait for response
-            yield
+        yield chan.await_obj   # wait for response
         so = chan.get()
         duration = utime.ticks_diff(tim, utime.ticks_ms())
         print('initiator received', so, 'timing', duration)

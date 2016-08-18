@@ -25,19 +25,22 @@
 # Run on ESP8266
 from usched import Sched
 from syncom import SynCom
-from machine import Pin
+from machine import Pin, freq
+
+def chready(chan):
+    return 1 if chan.any() else None
 
 def passive_thread(chan):
     yield
     while True:
-        while not chan.any():
-            yield
+        yield chan.await_obj
         obj = chan.get()
-        print('passive received: ', obj)
+#        print('passive received: ', obj)
         obj[2] += 1                         # modify object and send it back
         chan.send(obj)
 
 def test():
+    freq(160000000)
     mtx = Pin(14, Pin.OUT)                  # Define pins
     mckout = Pin(15, Pin.OUT, value = 0)    # clocks must be initialised to zero.
     mrx = Pin(13, Pin.IN)

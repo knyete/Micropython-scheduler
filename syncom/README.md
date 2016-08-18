@@ -1,10 +1,12 @@
 # Communication between MicroPython hardware boards
 
-This provides for communication between two devices, each running MicroPython, where a UART cannot
-be used. An example is where one device is an ESP8266 board. While this has one bidirectional UART,
-this may be in use either as a REPL console, for viewing debug output, or for other puposes.
+This provides a means of communication between two devices, each running MicroPython, where a UART
+cannot be used. An example is where one device is an ESP8266 board. While this has one
+bidirectional UART, this may be in use either as a REPL console, for viewing debug output, or for
+other puposes.
 
-It is intended for use in asynchronous programs. Currently it uses usched.
+It is intended for use in asynchronous programs. Currently it uses usched as a framework for
+cooperative multi-tasking.
 
 The module offers a bidirectional full duplex communication channel between two hardware devices.
 Its unit of communication is an arbitrary Python object making for simple application. Physically
@@ -23,8 +25,7 @@ from machine import Pin
 def my_thread(chan):
     yield
     while True:
-        while not chan.any():   # Wait for input
-            yield
+        yield chan.await_obj    # Wait for input
         obj = chan.get()        # Receive an object
         chan.send(obj)          # send it back
 
@@ -45,21 +46,23 @@ finally:                        # Under test conditions where code fails or
 
 ## Advantages
 
- * It should be portable to any MicroPython platform.
+ * Readily portable to any MicroPython platform.
  * It does not use hardware features such as interrupts or timers.
  * Hardware requirement: two arbitrary output pins and two input pins on each device.
  * The interface is synchronous, having no timing dependencies.
  * It supports full duplex communications (concurrent send and receive).
  * The unit of transmission is an arbitrary Python object.
  * All methods are non-blocking.
+ * Small: ~130 lines of Python.
 
 ## Limitations
 
  * The interface is an alternative to I2C or SPI and is intended for directly linked devices
  sharing a common power supply.
- * It is slow. With a Pyboard linked to an ESP8266 clocked at 80MHz, throughput is about 1.6Kbps.
+ * It is slow. With a Pyboard linked to an ESP8266 clocked at 80MHz, throughput is about 1.8Kbps.
  In practice throughput will depend on the performance of the slowest device and the behaviour of
- other threads.
+ other threads. Clocking the ESP8266 at 160MHz yields about 3.2Kbps, a 75% improvement. Note these
+ figures represent raw bps figures: mean throughput will be lower, see section Timing below.
 
 ## Rationale
 
@@ -69,8 +72,8 @@ timely response. The MicroPython slave drivers achieve this by means of blocking
 Such calls are incompatible with asynchronous programming.
 
 The two ends of the link are defined as ``initiator`` and ``passive``. These describe their roles
-in initialisation. From a user perspective the protocol is symmetrical and the choice as to which
-unit to assign to each role is arbitrary.
+in initialisation. Once running the protocol is symmetrical and the choice as to which unit to
+assign to each role is arbitrary.
 
 # Files
 
@@ -99,7 +102,8 @@ permissible and saves the need for an external resistor.
 An additional optional connection may be provided to enable one device to reset the other. For
 example a Pyboard linked to an ESP8266 might reset the ESP8266 in the event of a timeout. The
 watchdog timer on the Pyboard could extend this capability, restarting the Pyboard and in turn
-resetting the ESP8266 in the event of a fault.
+resetting the ESP8266 in the event of a fault. A reset connection simplifies development in that
+restarting the Pyboard code can reset the ESP8266 enabling automatic synchronisation.
 
 In this instance the pin providing the reset is arbitrary, but must be onnected to the reset pin
 of the target. The polarity of the reset pulse is definable in code (0 is required by the ESP8266).
@@ -138,12 +142,24 @@ Positional arguments:
  return ``None``.
  * ``any`` Return the number of received objects in the queue.
 
+## Attribute
+
+ * ``await_obj`` This is an instnce of a scheduler ``Poller`` class. The following code fragment
+ illustrates its use in waiting for an incoming object:
+
+```python
+    while True:
+        yield channel.await_obj
+        obj = channel.get()
+        # process obj
+```
+
 # Notes
 
 ## Synchronisation
 
 When a unit issues the ``start`` method a thread is started which runs forever. If a reset pin
-argumet is provided it resets the other unit, otherwise the assumption is that both units have
+argument is provided it resets the other unit, otherwise the assumption is that both units have
 started after power has been applied. The units achieve synchronisation when each has received a
 known sync character from the other. The link then runs continuously as a background process. In
 normal circumstances synchronisation is maintained indefinitely, the exception being if one end of
@@ -151,8 +167,8 @@ the link suffers a software crash.
 
 If a system is to be capable of surviving this, the unit which is still running needs to be able to
 detect the failure (usually by a timeout) and reset the failed unit. It should do this by issuing
-``start`` with reset arguments. This resets the other unit, kills its own backround thread and then
-restarts it, so the synchronisation phase begins again.
+``start`` with reset arguments (pin and state). This resets the other unit, kills its own backround
+thread and then restarts it, so the synchronisation phase begins again.
 
 ## Latency
 
@@ -161,6 +177,19 @@ ESP8266). Yielding to the scheduler after such a brief interval would result in 
 switching; the ``latency`` value provides control over the length of time the background thread
 monopolises the processors of both devices and is defined as the number of characters exchanged
 between ``yield`` statements. The default provides for a time of around 20ms.
+
+## Timing
+
+The timing measurements in Limitations above were performed as follows. A logic analyser was
+connected to one of the clock signals and the time for one character (7 bits) to be transferred was
+measured (note that a bit is transferred on each edge of the clock). This produced figures for the
+raw bits per second throughput of the bitbanged interface.
+
+The value produced by the test programs (sr_init.py and sr_passive.py) is the total time to send an
+object and receive it having been echoed back by the ESP8266. This includes encoding the object as
+a string, transmitting it, decoding and modifying it, followed by similar processing to send it
+back. Hence converting the figures to bps will produce a lower figure (on the order of 1.3Kbps at
+160MHz).
 
 ## The Pickle module
 
