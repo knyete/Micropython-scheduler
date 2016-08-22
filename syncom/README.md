@@ -138,8 +138,11 @@ Positional arguments:
  restarts the interface. The arguments provide for resetting the remote hardware, for example if a
  failure occurs. The passed pin is driven to the passed value for 100ms.
  * ``send`` Argument an arbitrary Python object. Sends it to the receiving hardware.
+ * ``send_str`` Argument a string. Sends it to the receiving hardware.
  * ``get`` Return a received Python object if one exists and remove it from the queue, otherwise
  return ``None``.
+ * ``get_str`` Return a string if one exists and remove it from the queue, otherwise return
+ ``None``.
  * ``any`` Return the number of received objects in the queue.
 
 ## Attribute
@@ -169,6 +172,19 @@ If a system is to be capable of surviving this, the unit which is still running 
 detect the failure (usually by a timeout) and reset the failed unit. It should do this by issuing
 ``start`` with reset arguments (pin and state). This resets the other unit, kills its own backround
 thread and then restarts it, so the synchronisation phase begins again.
+
+## send_str and get_str methods
+
+On resource constrained platforms the pickle module can be problematic: the method used to convert
+a string to an arbitrary Python object involves invoking the compiler which demands significant
+amounts of RAM. This can be avoided by sending only strings to the resource constrained platform,
+which must then parse the strings as required by the application. The protocol places some
+restrictions. The bytes must not include 0, and they are limited to 7 bits. The latter limitation
+can be removed (with small performance penalty) by changing the value of ``_BITS_PER_CH`` to 8.
+The limitations allow for normal UTF8 strings.
+
+Note that on resource constrained platforms sending arbitrary Python objects should not be an issue
+as the relevant pickle method uses only ``repr``.
 
 ## Latency
 

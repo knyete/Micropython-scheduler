@@ -77,6 +77,9 @@ class SynCom(object):
     def send(self, obj):
         self.lsttx.append(pickle.dumps(obj))
 
+    def send_str(self, string):
+        self.lsttx.append(string)
+
     def any(self):
         return len(self.lstrx)
 
@@ -86,6 +89,10 @@ class SynCom(object):
     def get(self):
         if self.any():
             return pickle.loads(self.lstrx.pop(0))
+
+    def get_str(self):
+        if self.any():
+            return self.lstrx.pop(0)
 
     def _run(self, pin_reset, reset_state):
         yield
