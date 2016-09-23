@@ -11,8 +11,11 @@ cooperative multi-tasking.
 The module offers a bidirectional full duplex communication channel between two hardware devices.
 Its unit of communication is an arbitrary Python object making for simple application. Physically
 it uses a 4-wire interface. It is designed to run on devices with minimal features and makes no
-assumptions about processing performance. If each device has two pins which can be used for output,
-and two for input, and is capable of running the scheduler it should work.
+assumptions about processing performance: at a physical level the interface is synchronous. If each
+device has two pins which can be used for output and two for input, and is capable of running the
+scheduler it should work.
+
+Now supports a timeout to enable the detection and resetting of a crashed target device.
 
 ## Example usage
 
@@ -105,7 +108,7 @@ watchdog timer on the Pyboard could extend this capability, restarting the Pyboa
 resetting the ESP8266 in the event of a fault. A reset connection simplifies development in that
 restarting the Pyboard code can reset the ESP8266 enabling automatic synchronisation.
 
-In this instance the pin providing the reset is arbitrary, but must be onnected to the reset pin
+In this instance the pin providing the reset is arbitrary, but must be connected to the reset pin
 of the target. The polarity of the reset pulse is definable in code (0 is required by the ESP8266).
 
 # The library
@@ -144,18 +147,30 @@ Positional arguments:
  * ``get_str`` Return a string if one exists and remove it from the queue, otherwise return
  ``None``.
  * ``any`` Return the number of received objects in the queue.
+ * ``set_timeout`` Optional argument an integer no. of us. Returns the current timeout
+ value. The timeout provides for the case where the remote device crashes, is reset or
+ calls a method which blocks indefintely: this will cause the scheduler on the local unit
+ to pause for the timeout duration as it waits for the remote. The initial timeout value
+ is 0 signifying no timeout. ``set_timeout`` can be called before issuing ``start``.
+ * ``running`` No args. Returns ``True`` if it's started and running. Will return ``False`` if
+ it has timed out.
 
-## Attribute
+## Attributes
 
  * ``await_obj`` This is an instnce of a scheduler ``Poller`` class. The following code fragment
  illustrates its use in waiting for an incoming object:
 
 ```python
     while True:
-        yield channel.await_obj
-        obj = channel.get()
+        reason = yield channel.await_obj  # Thread pauses here
+        if reason[1] == 1:
+            obj = channel.get()
+        elif reason[1] == 2:
+            raise MyException # Handle crashed target
         # process obj
 ```
+
+It returns 1 if an incoming object has been received, 2 if the link has timed out.
 
 # Notes
 
@@ -169,9 +184,10 @@ normal circumstances synchronisation is maintained indefinitely, the exception b
 the link suffers a software crash.
 
 If a system is to be capable of surviving this, the unit which is still running needs to be able to
-detect the failure (usually by a timeout) and reset the failed unit. It should do this by issuing
-``start`` with reset arguments (pin and state). This resets the other unit, kills its own backround
-thread and then restarts it, so the synchronisation phase begins again.
+detect the failure. Its SynCom object will time out and its ``running`` method will return ``False``.
+By polling this another thread can restart its own interface and reset the failed unit. It should do
+this by issuing ``start`` with reset arguments (pin and state). This resets the other unit, kills
+its own backround thread and then restarts it, so the synchronisation phase begins again.
 
 ## send_str and get_str methods
 

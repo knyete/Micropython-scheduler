@@ -1,6 +1,8 @@
 # Lightweight threading library for the micropython board.
 # Author: Peter Hinch
-# V1.06 Type check threads, heartbeat LED on Pyboard
+# V1.08 Sets gc threshold in low priority thread. Checks add_thread() reentrancy.
+# V1.07 Thread status method added.
+# V1.06 Type check threads, heartbeat LED. ESP8266 support.
 # V1.05 Uses utime for improved portability.
 # Copyright Peter Hinch 2016 Released under the MIT license
 
@@ -172,6 +174,7 @@ class Sched(object):
     DUE = const(4)
     def __init__(self, gc_enable=True, heartbeat=None):
         self.lstThread = []                     # Entries contain [Waitfor object, function, pid, state, due]
+        self.add_thread_bar = False             # Re-entrancy check
         self.bStop = False
         self.last_gc = 0
         self.pid = 0
@@ -218,19 +221,24 @@ class Sched(object):
             pass                                # Thread died
         return state
 
-# Thread list contains [Waitfor object, generator, pid, state]: Run thread to first yield to acquire 
+# Thread list contains [Waitfor object, generator, pid, state, due]: Run thread to first yield to acquire 
 # a Waitfor instance and put the resultant thread onto the threadlist
     def add_thread(self, func):
+        if self.add_thread_bar:
+            raise OSError('Cannot call add_thread() in initialisation code')
+        self.add_thread_bar = True
         if type(func) is not GeneratorType:
             raise ValueError('Threads must be added using function call syntax')
         self.pid += 1
         self.lstThread.append([func.send(None), func, self.pid, RUNNING, True])
+        self.add_thread_bar = False
         return self.pid
 
 # Runs once then in roundrobin or when there's nothing else to do
     def _idle_thread(self):
         if self.gc_enable and (self.last_gc == 0 or after(self.last_gc) > GCTIME):
             gc.collect()
+            gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
             self.last_gc = ticks_us()
         if self.heartbeat is not None and (self.last_heartbeat == 0 or after(self.last_heartbeat) > HBTIME):
             if platform == 'pyboard':

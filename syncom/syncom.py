@@ -1,5 +1,5 @@
 # syncom.py Synchronous communication channel between two MicroPython
-# platforms. 14 Jul 16
+# platforms. 23 Sep 16
 
 # The MIT License (MIT)
 #
@@ -24,13 +24,17 @@
 # THE SOFTWARE.
 
 # Timing: 4.5mS per char between Pyboard and ESP8266 i.e. ~1.55Kbps
+# Now supports timeout
 
 import pickle
 from usched import Poller
+from utime import ticks_diff, ticks_us
 
 _BITS_PER_CH = const(7)
 _BITS_SYN = const(8)
 
+class SynComError(Exception):
+    pass
 
 class SynCom(object):
     syn = 0x9d
@@ -50,15 +54,20 @@ class SynCom(object):
         self.din = din
         self.dout = dout
 
-        self.indata = 0             # Current data bits
-        self.inbits = 0
-        self.odata = self.syn
+        self.timeout = 0            # No timeout
+
         self.lsttx = []             # Queue of strings to send
         self.lstrx = []             # Queue of received strings
 
-        self.phase = 0              # Interface initial conditions
         self.await_obj = Poller(self._pollfunc)
-        if passive:
+
+    def init(self):
+        self._running = True        # False on failure
+        self.indata = 0             # Current data bits
+        self.inbits = 0
+        self.odata = self.syn
+        self.phase = 0              # Interface initial conditions
+        if self.passive:
             self.dout(0)
             self.ckout(0)
         else:
@@ -66,6 +75,17 @@ class SynCom(object):
             self.ckout(1)
             self.odata >>= 1        # we've sent that bit
             self.phase = 1
+
+    def set_timeout(self, timeout=None):
+        if timeout is not None:
+            if isinstance(timeout, int) and timeout >= 0:
+                self.timeout = timeout
+            else:
+                raise ValueErrror('Must be integer >= 0')
+        return self.timeout
+
+    def running(self):
+        return self._running
 
     def start(self, pin_reset=None, reset_state=0):  # Start or restart interface
         if self.pid is not None:    # Restarting
@@ -83,8 +103,10 @@ class SynCom(object):
     def any(self):
         return len(self.lstrx)
 
-    def _pollfunc(self):
-        return 1 if len(self.lstrx) else None
+    def _pollfunc(self):  # Don't let a thread hang if it's timed out
+        if self._running:
+            return 1 if len(self.lstrx) else None
+        return 2
 
     def get(self):
         if self.any():
@@ -95,6 +117,7 @@ class SynCom(object):
             return self.lstrx.pop(0)
 
     def _run(self, pin_reset, reset_state):
+        self.init()
         yield
         if pin_reset is not None:
             if self.verbose:
@@ -131,7 +154,10 @@ class SynCom(object):
                         send_idx = None
                 if send_idx is None:  # send zeros when nothing to send
                     self.odata = 0
-                self._get_byte()
+                if self.passive:
+                    self._get_byte_passive()
+                else:
+                    self._get_byte_active()
                 if self.indata:
                     getstr = ''.join((getstr, chr(self.indata)))
                 else:                # Got 0:
@@ -143,22 +169,26 @@ class SynCom(object):
                 if latency <= 0:    # yield at intervals of N characters
                     latency = self.latency
                     yield
+        except SynComError:
+            if self.verbose:
+                print('SynCom Timeout')
         finally:
+            self._running = False
             self.dout(0)
             self.ckout(0)
 
-    def _get_byte(self):
-        if self.passive:
-            self.indata = self._get_bit(self.inbits)  # MSB is outstanding
-            inbits = 0
-            for _ in range(_BITS_PER_CH - 1):
-                inbits = self._get_bit(inbits)
-            self.inbits = inbits
-        else:
-            inbits = 0
-            for _ in range(_BITS_PER_CH):
-                inbits = self._get_bit(inbits)  # LSB first
-            self.indata = inbits
+    def _get_byte_active(self):
+        inbits = 0
+        for _ in range(_BITS_PER_CH):
+            inbits = self._get_bit(inbits)  # LSB first
+        self.indata = inbits
+
+    def _get_byte_passive(self):
+        self.indata = self._get_bit(self.inbits)  # MSB is outstanding
+        inbits = 0
+        for _ in range(_BITS_PER_CH - 1):
+            inbits = self._get_bit(inbits)
+        self.inbits = inbits
 
     def _synchronise(self):         # wait for clock
         while self.ckin() == self.phase ^ self.passive ^ 1:
@@ -171,8 +201,10 @@ class SynCom(object):
         self.ckout(self.phase)      # set clock
 
     def _get_bit(self, dest):
+        t = ticks_us()
         while self.ckin() == self.phase ^ self.passive ^ 1:
-            pass
+            if self.timeout and ticks_diff(t, ticks_us()) > self.timeout:
+                raise SynComError
         dest = (dest | (self.din() << _BITS_PER_CH)) >> 1
         obyte = self.odata
         self.dout(obyte & 1)

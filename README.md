@@ -6,6 +6,7 @@ owing to its use of floats for time values. Drivers are included for switches, p
 alphanumeric LCD displays.
 
 Author: Peter Hinch
+V1.08 23rd Sep 2016 Sets gc threshold in low priority thread. Checks add_thread() reentrancy.
 V1.07 11th Aug 2016. Thread status method added.  
 V1.06 28th July 2016. Optional heartbeat LED on Pyboard and ESP8266.  
 V1.05 19th May 2016. Uses utime for improved portability. See Porting below.  
@@ -119,7 +120,9 @@ objSched.add_thread(toggle(leds[x], 0.75))
 ```
 
 The ``add_thread`` method may be issued from another thread, enabling threads to be dynamically
-created. The ``Sched`` class  is started by calling its ``run()`` method: execution transfers to
+created. This should be done after at least one ``yield`` has been performed.
+
+The ``Sched`` class  is started by calling its ``run()`` method: execution transfers to
 the first thread to be scheduled. Any code following the call to ``run()`` will not be executed
 until the scheduler terminates; up to that point execution is shared between the threads. The
 scheduler will terminate either when all threads have terminated or when its ``stop()`` method
@@ -127,7 +130,8 @@ is called. Execution then continues with the line following the call to ``run()`
 
 When ``add_thread`` is issued the thread will run until the first yield statement. It will then
 suspend execution until the scheduler starts. This enables initialisation code to be run in a well
-defined order: the order in which threads are added.
+defined order: the order in which threads are added. The ``add_thread`` method should not be called
+in initialisation code.
 
 If ``add_thread`` raises a ``StopIteration`` exception it is probably because your thread runs
 to completion without executing ``yield``.
@@ -238,6 +242,19 @@ specified in the constructor.
 
 For performance reasons callback functions should be designed to execute quickly: the scheduler
 runs the callback every time it allocates execution.
+
+There is a potential trap in the use of Poller objects caused by the fact that polled threads have
+priority over roundrobin ones. Consider:
+
+```python
+while True:
+    do_something()
+    yield my_poller_instance
+```
+
+This will monopolise the scheduler unless ``do_something()`` causes the poller at least sometimes
+to yield ``False``. This may be avoided by adding a ``yield`` statement. This ensures that each
+roundrobin thread runs before the routine runs again.
 
 ### Blocking on a Pin interrupt
 
