@@ -5,8 +5,11 @@ Pyboards V1.0 and 1.1 and on the Pyboard Lite, also on ESP8266. It is incompatib
 owing to its use of floats for time values. Drivers are included for switches, push-buttons and
 alphanumeric LCD displays.
 
+Owing to RAM constraints on the ESP8266 the main module usched.py must be implemented as frozen
+bytecode.
+
 Author: Peter Hinch
-V1.08 23rd Sep 2016 Sets gc threshold in low priority thread. Checks add_thread() reentrancy.
+V1.08 23rd Sep 2016 Sets gc threshold in low priority thread. Checks add_thread() reentrancy.  
 V1.07 11th Aug 2016. Thread status method added.  
 V1.06 28th July 2016. Optional heartbeat LED on Pyboard and ESP8266.  
 V1.05 19th May 2016. Uses utime for improved portability. See Porting below.  
