@@ -2,7 +2,6 @@
 # Author: Peter Hinch
 # Copyright Peter Hinch 2016 Released under the MIT license
 
-import pyb
 from usched import Sched
 
 # Run on MicroPython board bare hardware
