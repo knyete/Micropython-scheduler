@@ -205,7 +205,10 @@ class Sched(object):
         if pid == 0:
             self.bStop = True                   # Kill _runthreads method
             return
-        self[pid][STATE] = DEAD
+        try:
+            self[pid][STATE] = DEAD
+        except ValueError:                      # Missing presumed killed in action
+            pass
 
     def pause(self, pid):
         self[pid][STATE] = PAUSED
