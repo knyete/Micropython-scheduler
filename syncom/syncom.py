@@ -30,6 +30,17 @@ import pickle
 from usched import Poller
 from utime import ticks_diff, ticks_us
 
+def tdiff():
+    new_semantics = ticks_diff(2, 1) == 1
+    def func(old, new):
+        nonlocal new_semantics
+        if new_semantics:
+            return ticks_diff(new, old)
+        return ticks_diff(old, new)
+    return func
+
+ticksdiff = tdiff()
+
 _BITS_PER_CH = const(7)
 _BITS_SYN = const(8)
 
@@ -203,7 +214,7 @@ class SynCom(object):
     def _get_bit(self, dest):
         t = ticks_us()
         while self.ckin() == self.phase ^ self.passive ^ 1:
-            if self.timeout and ticks_diff(t, ticks_us()) > self.timeout:
+            if self.timeout and ticksdiff(t, ticks_us()) > self.timeout:
                 raise SynComError
         dest = (dest | (self.din() << _BITS_PER_CH)) >> 1
         obyte = self.odata

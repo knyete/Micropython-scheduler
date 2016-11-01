@@ -28,6 +28,17 @@ from usched import Sched
 from syncom import SynCom
 import utime
 
+def tdiff():
+    new_semantics = utime.ticks_diff(2, 1) == 1
+    def func(old, new):
+        nonlocal new_semantics
+        if new_semantics:
+            return utime.ticks_diff(new, old)
+        return utime.ticks_diff(old, new)
+    return func
+
+ticksdiff = tdiff()
+
 def initiator_thread(chan):
     yield
     so = ['test', 0, 0]
@@ -47,7 +58,7 @@ def initiator_thread(chan):
         chan.send(so)
         yield chan.await_obj   # wait for response
         so = chan.get()
-        duration = utime.ticks_diff(tim, utime.ticks_ms())
+        duration = ticksdiff(tim, utime.ticks_ms())
         print('initiator received', so, 'timing', duration)
 
 def test():
