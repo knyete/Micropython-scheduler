@@ -1,5 +1,6 @@
 # Lightweight threading library for the micropython board.
 # Author: Peter Hinch
+# V1.09 const now in micropython. Fix for context managers in threads which are stopped.
 # V1.08 Sets gc threshold in low priority thread. Checks add_thread() reentrancy.
 # V1.07 Thread status method added.
 # V1.06 Type check threads, heartbeat LED. ESP8266 support.
@@ -9,6 +10,10 @@
 import gc
 from utime import ticks_us
 from sys import platform
+try:
+    from micropython import const
+except ImportError:
+    pass
 
 def _g(): # MicroPython has trouble distinguishing generators from generator functions (#2184)
     yield 1
@@ -206,7 +211,9 @@ class Sched(object):
             self.bStop = True                   # Kill _runthreads method
             return
         try:
-            self[pid][STATE] = DEAD
+            thread = self[pid]
+            thread[FUNC].close()                # Ensure try...finally and __exit__() work
+            thread[STATE] = DEAD
         except ValueError:                      # Missing presumed killed in action
             pass
 
@@ -296,11 +303,18 @@ class Sched(object):
             thr_run[DUE] = False                # Only care if RR
 
     def run(self):                              # Returns if the stop method is used or all threads terminate
-        while not self.bStop:
-            self.lstThread = [thread for thread in self.lstThread if thread[STATE] != DEAD] # Remove dead threads
-            self._idle_thread()                 # Garbage collect
-            if len(self.lstThread) == 0:
-                return
-            for thread in self.lstThread:
-                thread[DUE] = True              # Applies only to roundrobin
-            self._runthreads()                  # Returns when all RR threads have run once
+        try:
+            while not self.bStop:
+                # Remove dead threads
+                self.lstThread = [thread for thread in self.lstThread if thread[STATE] != DEAD]
+                self._idle_thread()                 # Garbage collect
+                if len(self.lstThread) == 0:
+                    return
+                for thread in self.lstThread:
+                    thread[DUE] = True              # Applies only to roundrobin
+                self._runthreads()                  # Returns when all RR threads have run once
+        # Tidy up before scheduler exit
+        finally:
+            for gen in [thread[FUNC] for thread in self.lstThread if thread[STATE] != DEAD]:
+                gen.close()                         # Ensure context managers and finally clauses clean up
+        

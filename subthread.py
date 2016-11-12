@@ -17,6 +17,7 @@ def subthread(lstResult):                                   # Gets a list for re
 
 def waitforit(objSched):                                    # Waits forever on subthread. Could readily wait on more than one thread.
     result = [False]                                        # Result array will be changed by subthread before it terminates
+    yield
     print("Waiting on thread")
     objSched.add_thread(subthread(result))
     while not result[0]:                                    # Subthread will set element 0 True on completion

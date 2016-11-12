@@ -76,7 +76,8 @@ Test/demonstration programs. The first two produce the most interesting demos :)
  7. instrument.py The scheduler's timing functions employed to instrument code.
  8. pushbuttontest.py Demo of pushbutton class.
  9. pause.py Demo of threads controlling each other.
- 10. syncom directory. A means of communication between boards running MicroPython independent of
+ 10. cleanup.py Test of context managers in threads.
+ 11. syncom directory. A means of communication between boards running MicroPython independent of
  UARTs or other hardware. It enables the exchange of arbitrary Python objects. Tested between
  Pyboard and ESP8266. See [readme](./syncom/README.md).
 
