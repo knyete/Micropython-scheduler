@@ -19,6 +19,23 @@ API change: owing to utime's ``ticks_us()`` rollover the maximum time delay is r
 V1.04 27th Feb 2016. Now performs garbage collection to reduce heap fragmentation. Improved
 scheduling algorithm. Threads can now pause, resume and kill other threads. Simplified usage.
 
+# Project Status (Jan 2017)
+
+The official way to write code using cooperative multi tasking is to use uasyncio.
+Until recently this was unsuitable for hardware interfacing but this is no longer
+the case. Consequently this project is now somewhat redundant although some may still
+wish to use it for a variety of reasons; I will continue to support it but intend
+no significant new development.
+
+Currently this scheduler's Poller and Pinblock classes offer lower latency than
+is possible with uasyncio. (These objects are tested on every yield to the
+scheduler whereas uasyncio polling mechanisms are scheduled for testing. They are
+queried in round-robin fashion with all other pending coroutines). Work is in
+progress to offer a mechanism to remedy this with enhancements to uasycio's
+IORead mechanism.
+
+Some code and tutorial information on uasyncio may be found [here](https://github.com/peterhinch/micropython-async).
+
 # Introduction
 
 Many embedded systems use cooperative multi tasking. A scheduler running concurrent threads
