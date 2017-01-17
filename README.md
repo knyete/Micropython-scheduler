@@ -25,14 +25,8 @@ The official way to write code using cooperative multi tasking is to use uasynci
 Until recently this was unsuitable for hardware interfacing but this is no longer
 the case. Consequently this project is now somewhat redundant although some may still
 wish to use it for a variety of reasons; I will continue to support it but intend
-no significant new development.
-
-Currently this scheduler's Poller and Pinblock classes offer lower latency than
-is possible with uasyncio. (These objects are tested on every yield to the
-scheduler whereas uasyncio polling mechanisms are scheduled for testing. They are
-queried in round-robin fashion with all other pending coroutines). Work is in
-progress to offer a mechanism to remedy this with enhancements to uasycio's
-IORead mechanism.
+no significant new development. A technical comparison of this scheduler and
+uasycio may be found in "Comparison with uasyncio" below.
 
 Some code and tutorial information on uasyncio may be found [here](https://github.com/peterhinch/micropython-async).
 
@@ -715,3 +709,25 @@ event - with an optional timeout available. See paragraph "Wait on an Arbitrary 
 usched.py uses standard MicroPython syntax and libraries with one exception: the ``Pinblock``
 class. This is Pyboard specific in its use of interrupts. If the target doesn't support the pyb
 library the ``Pinblock`` class should be ignored, deleted or adapted.
+
+# Comparison with uasyncio
+
+The following comments as as of January 2017.
+
+``uasyncio`` offers allocation-free scheduling which was not a design aim of
+``usched``. In this respect uasyncio is clearly superior.
+
+``usched`` enables threads to pause and stop other threads. Unless ``uasyncio``
+matures to embrace futures and tasks this difference is likely to remain.
+
+At the time of writing the scheduling of ``usyncio`` is imperfect (issue #140).
+The design of ``usched`` aims to guarantee that round-robin tasks will be
+executed in the correct sequence.
+
+``usched`` provides the ``Poller`` and ``Pinblock`` classes enabling hardware
+to be polled on every iteration of the scheduler. Currently ``uasyncio`` does
+not provide such a mechanism. The best that can be achieved is to poll in a
+coroutine. If there are N coroutines running in round-robin fashion, each with
+a latency T, the hardware will be polled at intervals of NT. By contrast
+``usched`` would poll at intervals of T. The development plan for ``uasyncio``
+is to remedy this by means of the IORead mechanism.
