@@ -1,4 +1,4 @@
-# Micropython-scheduler
+# Micropython-scheduler (not recommended for new designs)
 
 A set of libraries for writing threaded code on the MicroPython board. It has been tested on
 Pyboards V1.0 and 1.1 and on the Pyboard Lite, also on ESP8266. It is incompatible with the WiPy
@@ -19,16 +19,21 @@ API change: owing to utime's ``ticks_us()`` rollover the maximum time delay is r
 V1.04 27th Feb 2016. Now performs garbage collection to reduce heap fragmentation. Improved
 scheduling algorithm. Threads can now pause, resume and kill other threads. Simplified usage.
 
-# Project Status (Jan 2017)
+# Project Status (May 2017)
 
-The official way to write code using cooperative multi tasking is to use uasyncio.
-Until recently this was unsuitable for hardware interfacing but this is no longer
-the case. Consequently this project is now somewhat redundant although some may still
-wish to use it for a variety of reasons; I will continue to support it but intend
-no significant new development. A technical comparison of this scheduler and
-uasycio may be found in "Comparison with uasyncio" below.
+The official MicrPython library for cooperative multi tasking is ``uasyncio``.
+This is now fast enough for most applications, and it can be improved as
+described below. Consequently I do not recommend ``usched`` for new designs. I
+will continue to support it but intend no new development. A technical
+comparison of ``usched`` and ``uasycio`` may be found in "Comparison with
+uasyncio" below.
 
-Some code and tutorial information on uasyncio may be found [here](https://github.com/peterhinch/micropython-async).
+Demo code and tutorial information on ``uasyncio`` may be found [here](https://github.com/peterhinch/micropython-async).
+This also offers a modified version of ``uasyncio`` providing a simple priority
+mechanism. This enables applications to be written in a way which reduces
+latency and improves timing accuracy, in some cases substantially. The
+principal application area is interfacing to hardware requiring a millisecond
+class response time.
 
 # Introduction
 
@@ -712,22 +717,26 @@ library the ``Pinblock`` class should be ignored, deleted or adapted.
 
 # Comparison with uasyncio
 
-The following comments as as of January 2017.
+The following comments as as of May 2017.
 
 ``uasyncio`` offers allocation-free scheduling which was not a design aim of
-``usched``. In this respect uasyncio is clearly superior.
+``usched``. In this respect uasyncio is clearly superior, with considerably
+faster scheduling (~230μs on Pyboard).
 
 ``usched`` enables threads to pause and stop other threads. Unless ``uasyncio``
 matures to embrace futures and tasks this difference is likely to remain.
 
-At the time of writing the scheduling of ``usyncio`` is imperfect (issue #140).
-The design of ``usched`` aims to guarantee that round-robin tasks will be
-executed in the correct sequence.
-
 ``usched`` provides the ``Poller`` and ``Pinblock`` classes enabling hardware
 to be polled on every iteration of the scheduler. Currently ``uasyncio`` does
-not provide such a mechanism. The best that can be achieved is to poll in a
-coroutine. If there are N coroutines running in round-robin fashion, each with
-a latency T, the hardware will be polled at intervals of NT. By contrast
-``usched`` would poll at intervals of T. The development plan for ``uasyncio``
-is to remedy this by means of the IORead mechanism.
+not provide such a mechanism, nor do the maintainers intend to implement one.
+The best that can be achieved is to poll in a coroutine. If there are N
+coroutines running in round-robin fashion, each with a latency T, the hardware
+will be polled at intervals of NT. By contrast ``usched`` would poll at
+intervals of T.
+
+To remedy this I have written a mofified version of ``uasyncio`` which may be
+found [here](https://github.com/peterhinch/micropython-async.git). This
+provides a simple priority mechanism.
+
+In short I recommend the use of ``uasyncio`` for new projects, using my variant
+if minimal latency and more precise time delays are an application requirement.
